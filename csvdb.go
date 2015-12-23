@@ -1,8 +1,11 @@
 package csvdb
 
 import (
+       "crypto/md5"
 	"errors"
 	_ "fmt"
+	"encoding/hex"
+	"encoding/json"
 	csv "github.com/whosonfirst/go-whosonfirst-csv"
 	"io"
 )
@@ -37,7 +40,6 @@ func NewCSVDB(csv_file string, to_index []string) (*CSVDB, error) {
 		}
 
 		if err != nil {
-			// fmt.Printf("%v\n", err)
 			continue
 		}
 
@@ -51,6 +53,8 @@ func NewCSVDB(csv_file string, to_index []string) (*CSVDB, error) {
 
 			pruned[k] = v
 		}
+
+		pruned_hex := ""
 
 		for _, k := range to_index {
 
@@ -69,6 +73,12 @@ func NewCSVDB(csv_file string, to_index []string) (*CSVDB, error) {
 			if !ok {
 				idx = NewCSVDBIndex()
 				db[k] = idx
+			}
+
+			if pruned_hex == "" {
+				pruned_json, _ := json.Marshal(pruned)
+				pruned_hash := md5.Sum(pruned_json)
+				pruned_hex = hex.EncodeToString(pruned_hash[:])
 			}
 
 			/*
