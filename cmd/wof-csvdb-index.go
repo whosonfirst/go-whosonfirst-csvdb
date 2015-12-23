@@ -29,8 +29,21 @@ func main () {
 
      t2 := time.Since(t1)
 
-     fmt.Printf("indexes: %d keys: %d rows: %d time to index: %v", db.Indexes(), db.Rows(), db.Keys(), t2)
+     fmt.Printf("indexes: %d keys: %d rows: %d time to index: %v\n", db.Indexes(), db.Rows(), db.Keys(), t2)
 
-     // db.Where
-     
+     rows, _ := db.Where("gp:id", "3534") 
+
+     fmt.Printf("where gp:id= 3534 %d\n", len(rows))
+
+     for i, row := range rows {
+
+     	 fmt.Printf("looping over result #%d\n", i+1)
+
+	     for k, v := range row.AsMap() {
+	     	 r, _ := db.Where(k, v)
+	     	 fmt.Printf("where %s=%s %d\n", k, v, len(r))
+	     }
+
+     }
+
 }

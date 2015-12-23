@@ -2,7 +2,8 @@ package csvdb
 
 import (
 	csv "github.com/whosonfirst/go-whosonfirst-csv"
-	"fmt"
+	"errors"
+	_ "fmt"
 	"io"
 )
 
@@ -52,6 +53,17 @@ func NewCSVDB (csv_file string, to_index []string) (*CSVDB, error) {
 	       continue
 	    }
 
+	    pruned := make(map[string]string)
+
+	    for k, v := range row {
+
+	    	if v == "" {
+		   continue
+		} 
+
+		pruned[k] = v
+     	    }
+
 	    idx, ok := db[k]
 
 	    if !ok {
@@ -59,9 +71,9 @@ func NewCSVDB (csv_file string, to_index []string) (*CSVDB, error) {
 	       db[k] = idx
 	    }
 
-	    // fmt.Printf("add %s=%s (%v)\n", k, value, row)
+	    // fmt.Printf("add %s=%s (%v)\n", k, value, pruned)
 
-	    idx.Add(value, row)
+	    idx.Add(value, pruned)
 	}
 
      }
@@ -113,6 +125,25 @@ func (d *CSVDB) Rows() int {
      return count
 }
 
+func (d *CSVDB) Where (key string, id string) ([]*CSVDBRow, error) {
+
+     rows := make([]*CSVDBRow, 0)
+
+     idx, ok := d.db[key]
+
+     if !ok {
+     	return rows, errors.New("Unknown index")
+     }
+
+     rows, ok = idx.index[id]	// PLEASE MAKE ME A FUNCTION OR SOMETHING
+
+     if !ok {
+     	return rows, errors.New("Unknown ID")
+     }
+
+     return rows, nil
+}
+
 /* CSVDBIndex methods */
 
 func (i *CSVDBIndex) Add(key string, row map[string]string) bool {
@@ -154,3 +185,7 @@ func (i *CSVDBIndex) Rows() int {
 }
 
 /* CSVDBRow methods */
+
+func (r *CSVDBRow) AsMap() map[string]string {
+     return r.row
+}
