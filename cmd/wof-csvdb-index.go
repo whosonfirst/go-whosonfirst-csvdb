@@ -60,20 +60,13 @@ func main() {
 
 		fmt.Printf("search for %s=%s\n", k, v)
 
+		t1 := time.Now()
+
 		rows, _ := db.Where(k, v)
 
-		fmt.Printf("where %s=%s %d\n", k, v, len(rows))
+		t2 := time.Since(t1)
 
-		for i, row := range rows {
-
-			fmt.Printf("looping over result #%d\n", i+1)
-
-			for k, v = range row.AsMap() {
-				r, _ := db.Where(k, v)
-				fmt.Printf("where %s=%s %d\n", k, v, len(r))
-			}
-
-		}
+		fmt.Printf("where %s=%s %d results (%v)\n", k, v, len(rows), t2)
 
 		fmt.Println("")
 		fmt.Println("> query <col>=<id>")
