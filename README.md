@@ -6,8 +6,6 @@ Experimental in-memory database for CSV files.
 
 This is not sophisticated. It is not meant to be sophisticated. It is meant to be easy and fast. It might also be too soon for you to play with depending on how you feel about "things in flux".
 
-_IMPORTANT: AS IN THIS IS BROKEN RIGHT NOW..._
-
 ## Usage
 
 _Please write me_

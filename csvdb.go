@@ -2,6 +2,7 @@ package csvdb
 
 import (
 	"errors"
+	_ "fmt"
 	csv "github.com/whosonfirst/go-whosonfirst-csv"
 	"io"
 )
@@ -165,7 +166,7 @@ func (d *CSVDB) Where(key string, id string) ([]*CSVDBRow, error) {
 		return rows, errors.New("Unknown ID")
 	}
 
-	for idx := range offsets {
+	for _, idx := range offsets {
 		row := d.lookup[idx]
 		rows = append(rows, row)
 	}
