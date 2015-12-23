@@ -10,7 +10,7 @@ Things this package does not do yet (or maybe ever) in no particular order:
 
 * Complex queries
 * Query operators besides testing equality (`=`)
-* Pagination
+* Pagination - this package is still design primarily for datasets that will not return a lot of results for a given query
 * Proper logging
 * Serializing indexes to disk (or loading them)
 
