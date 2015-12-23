@@ -70,8 +70,11 @@ func NewCSVDB(csv_file string, to_index []string) (*CSVDB, error) {
 				idx = NewCSVDBIndex()
 				db[k] = idx
 			}
-
-			// fmt.Printf("add %s=%s (%v)\n", k, value, pruned)
+			
+			/* 
+			   TO DO: ONLY STORE pruned ONCE AND THEN STORE A POINTER
+			   TO IT FROM INDIVIDUAL INDEXES (20151222/thisisaaronland)
+			*/
 
 			idx.Add(value, pruned)
 		}
