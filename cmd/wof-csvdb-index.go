@@ -1,49 +1,79 @@
 package main
 
 import (
-	csvdb "github.com/whosonfirst/go-whosonfirst-csvdb"
+	"bufio"
 	"flag"
 	"fmt"
+	csvdb "github.com/whosonfirst/go-whosonfirst-csvdb"
+	"os"
+	"strings"
 	"time"
 )
 
-func main () {
+func main() {
 
-     flag.Parse()
-     args := flag.Args()
+	var cols = flag.String("columns", "", "Comma-separated list of columns to index")
 
-     path := args[0]
+	flag.Parse()
+	args := flag.Args()
 
-     to_index := make([]string, 0)
-     to_index = append(to_index, "wof:id")
-     to_index = append(to_index, "gp:id")
-     to_index = append(to_index, "gn:id")
+	path := args[0]
 
-     t1 := time.Now()
+	to_index := make([]string, 0)
 
-     db, err := csvdb.NewCSVDB(path, to_index)
+	for _, c := range strings.Split(*cols, ",") {
+		to_index = append(to_index, c)
+	}
 
-     if err != nil {
-     	panic(err)
-     }
+	t1 := time.Now()
 
-     t2 := time.Since(t1)
+	db, err := csvdb.NewCSVDB(path, to_index)
 
-     fmt.Printf("indexes: %d keys: %d rows: %d time to index: %v\n", db.Indexes(), db.Rows(), db.Keys(), t2)
+	if err != nil {
+		panic(err)
+	}
 
-     rows, _ := db.Where("gp:id", "3534") 
+	t2 := time.Since(t1)
 
-     fmt.Printf("where gp:id= 3534 %d\n", len(rows))
+	fmt.Printf("indexes: %d keys: %d rows: %d time to index: %v\n", db.Indexes(), db.Rows(), db.Keys(), t2)
 
-     for i, row := range rows {
 
-     	 fmt.Printf("looping over result #%d\n", i+1)
+	scanner := bufio.NewScanner(os.Stdin)
 
-	     for k, v := range row.AsMap() {
-	     	 r, _ := db.Where(k, v)
-	     	 fmt.Printf("where %s=%s %d\n", k, v, len(r))
-	     }
+	fmt.Println("query <key>=<id>")
 
-     }
+	for scanner.Scan() {
 
+		input := scanner.Text()
+		fmt.Println(input)
+
+		query := strings.Split(input, "=")
+
+		if len(query) != 2 {
+		   fmt.Println("Invalid query")
+		   continue		   	      
+		}
+
+		k := query[0]
+		v := query[1]
+
+		fmt.Printf("search for %s=%s\n", k, v)
+
+		rows, _ := db.Where(k, v)
+
+		fmt.Printf("where %s=%s %d\n", k, v, len(rows))
+
+		for i, row := range rows {
+
+			fmt.Printf("looping over result #%d\n", i+1)
+
+			for k, v = range row.AsMap() {
+				r, _ := db.Where(k, v)
+				fmt.Printf("where %s=%s %d\n", k, v, len(r))
+			}
+
+		}
+
+		fmt.Println("")
+	}
 }
