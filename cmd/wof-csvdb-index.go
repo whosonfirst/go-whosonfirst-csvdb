@@ -64,6 +64,7 @@ func main() {
 		for i, row := range rows {
 
 			fmt.Printf("looping over result #%d\n", i+1)
+			fmt.Printf("%v\n", row)
 
 			for k, v = range row.AsMap() {
 				r, _ := db.Where(k, v)
