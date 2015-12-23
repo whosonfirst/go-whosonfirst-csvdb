@@ -10,14 +10,15 @@ import (
 type CSVDB struct {
 
 	// So yeah these two names should probably be flipped...
-	// map is something like:
-	// gp:id = { '3534': [25] }
-	// gn:id = { '999': [25] }
+	// 
+	// 'map' is something like:
+	// map['gp:id'] = { '3534': [25] }
+	// map['gn:id'] = { '999': [25] }
 	//
-	// lookup is something like:
+	// 'lookup' is something like:
 	// lookup[25] = {'gp:id':'3534', 'wof:id':'1234', 'gn:id':'999' }
 
-	db     map[string]*CSVDBIndex
+	db     map[string]*CSVDBIndex	 // This is possibly/probably overkill...
 	lookup []*CSVDBRow
 }
 
