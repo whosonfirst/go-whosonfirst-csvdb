@@ -1,11 +1,11 @@
 package csvdb
 
 import (
-       "crypto/md5"
+        _ "crypto/md5"
 	"errors"
 	_ "fmt"
-	"encoding/hex"
-	"encoding/json"
+	_ "encoding/hex"
+	_ "encoding/json"
 	csv "github.com/whosonfirst/go-whosonfirst-csv"
 	"io"
 )
@@ -32,7 +32,13 @@ func NewCSVDB(csv_file string, to_index []string) (*CSVDB, error) {
 		return nil, err
 	}
 
+	lookup := make([]map[string]string, 0)
+	offset := 0
+
 	for {
+
+		offset += 1
+
 		row, err := reader.Read()
 
 		if err == io.EOF {
@@ -54,7 +60,7 @@ func NewCSVDB(csv_file string, to_index []string) (*CSVDB, error) {
 			pruned[k] = v
 		}
 
-		pruned_hex := ""
+		pruned_idx := -1
 
 		for _, k := range to_index {
 
@@ -75,17 +81,20 @@ func NewCSVDB(csv_file string, to_index []string) (*CSVDB, error) {
 				db[k] = idx
 			}
 
+			/*
 			if pruned_hex == "" {
 				pruned_json, _ := json.Marshal(pruned)
 				pruned_hash := md5.Sum(pruned_json)
 				pruned_hex = hex.EncodeToString(pruned_hash[:])
 			}
-
-			/*
-			   TO DO: ONLY STORE pruned ONCE AND THEN STORE A POINTER
-			   TO IT FROM INDIVIDUAL INDEXES (20151222/thisisaaronland)
 			*/
 
+			if pruned_idx == -1 {
+			   lookup = append(lookup, pruned)
+			   pruned_idx = len(lookup) -1
+			}
+
+			// fmt.Printf("row %d stored at lookup %d\n", offset, pruned_idx)
 			idx.Add(value, pruned)
 		}
 
