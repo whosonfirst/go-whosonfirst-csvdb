@@ -14,27 +14,11 @@ type CSVDBIndex struct {
      index map[string][]*CSVDBRow
 }
 
-func (i *CSVDBIndex) Add(key string, row map[string]string) bool {
-
-     possible, ok := i.index[key]
-
-     if !ok {
-     	possible = make([]*CSVDBRow, 0)
-     }
-
-     dbrow := NewCSVDBRow(row)
-     possible = append(possible, dbrow)
-
-     i.index[key] = possible
-
-     return true
-}
-
 type CSVDBRow struct {
      row map[string]string
 }
 
-func NewCSVDB (csv_file string, index []string) (*CSVDB, error) {
+func NewCSVDB (csv_file string, to_index []string) (*CSVDB, error) {
 
      db := make(map[string]*CSVDBIndex)
 
@@ -56,7 +40,7 @@ func NewCSVDB (csv_file string, index []string) (*CSVDB, error) {
 		continue
 	}
 
-	for _, k := range index {
+	for _, k := range to_index {
 
 	    value, ok := row[k]	  
 
@@ -75,6 +59,8 @@ func NewCSVDB (csv_file string, index []string) (*CSVDB, error) {
 	       db[k] = idx
 	    }
 
+	    // fmt.Printf("add %s=%s (%v)\n", k, value, row)
+
 	    idx.Add(value, row)
 	}
 
@@ -91,3 +77,80 @@ func NewCSVDBIndex() *CSVDBIndex {
 func NewCSVDBRow(row map[string]string) *CSVDBRow {
      return &CSVDBRow{row}
 }
+
+/* CSVDB methods */
+
+func (d *CSVDB) Indexes() int {
+
+     count := 0
+
+     for _ = range d.db {
+     	 count += 1
+     }
+
+     return count
+}
+
+func (d *CSVDB) Keys() int {
+
+     count := 0
+
+     for i, _ := range d.db {
+     	 count += d.db[i].Keys()
+     }
+
+     return count
+}
+
+func (d *CSVDB) Rows() int {
+
+     count := 0
+
+     for i, _ := range d.db {
+     	 count += d.db[i].Rows()
+     }
+
+     return count
+}
+
+/* CSVDBIndex methods */
+
+func (i *CSVDBIndex) Add(key string, row map[string]string) bool {
+
+     possible, ok := i.index[key]
+
+     if !ok {
+     	possible = make([]*CSVDBRow, 0)
+     }
+
+     dbrow := NewCSVDBRow(row)
+     possible = append(possible, dbrow)
+
+     i.index[key] = possible
+
+     return true
+}
+
+func (i *CSVDBIndex) Keys() int {
+
+     count := 0
+
+     for _ = range i.index {
+     	 count += 1
+     }
+
+     return count
+}
+
+func (i *CSVDBIndex) Rows() int {
+
+     count := 0
+
+     for _, rows := range i.index {
+     	 count += len(rows)
+     }
+
+     return count
+}
+
+/* CSVDBRow methods */
