@@ -4,7 +4,7 @@ Experimental in-memory database for CSV files.
 
 ## Caveats
 
-It is probably too soon for you to play with.
+This is not sophisticated. It is not meant to be sophisticated. It is meant to be easy and fast. It might also be too soon for you to play with depending on how you feel about "things in flux".
 
 ## Usage
 
@@ -14,7 +14,9 @@ _Please write me_
 
 ### wof-csvdb-index
 
-This is a little bit of a misnomer as it's mostly a stesting tool right now. Oh well...
+This is a little bit of a misnomer as it's mostly a testing tool right now. Oh well...
+
+In this example we'll index three columns from the [wof-concordances-latest.csv]() file (specifically `wof:id` and `gp:id` and `gn:id`) and then perform a couple queries against the index. We'll also query for the key, value pairs in each response row (assuming that most of them will fail since they haven't been indexed).
 
 ```
 $> ./bin/wof-csvdb-index -columns wof:id,gp:id,gn:id /usr/local/mapzen/whosonfirst-data/meta/wof-concordances-latest.csv 
