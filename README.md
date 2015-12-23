@@ -6,6 +6,13 @@ Experimental in-memory database for CSV files.
 
 This is not sophisticated. It is not meant to be sophisticated. It is meant to be easy and fast. It might also be too soon for you to play with depending on how you feel about "things in flux".
 
+Things this package does not do yet (or maybe ever) in no particular order:
+
+* Complex queries
+* Query operators besides testing equality (`=`)
+* Proper logging
+* Serializing indexes to disk (or loading them)
+
 ## Usage
 
 _Please write me_
