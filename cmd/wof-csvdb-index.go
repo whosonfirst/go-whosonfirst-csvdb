@@ -35,22 +35,20 @@ func main() {
 
 	t2 := time.Since(t1)
 
-	fmt.Printf("indexes: %d keys: %d rows: %d time to index: %v\n", db.Indexes(), db.Rows(), db.Keys(), t2)
+	fmt.Printf("> indexes: %d keys: %d rows: %d time to index: %v\n", db.Indexes(), db.Rows(), db.Keys(), t2)
 
 	scanner := bufio.NewScanner(os.Stdin)
 
-	fmt.Println("query <col>=<id>")
+	fmt.Println("> query <col>=<id>")
 	fmt.Printf("> ")
 
 	for scanner.Scan() {
 
 		input := scanner.Text()
-		fmt.Println(input)
-
 		query := strings.Split(input, "=")
 
 		if len(query) != 2 {
-			fmt.Println("Invalid query")
+			fmt.Println("invalid query")
 			continue
 		}
 
@@ -75,7 +73,7 @@ func main() {
 		}
 
 		fmt.Println("")
-		fmt.Println("query <col>=<id>")
+		fmt.Println("> query <col>=<id>")
 		fmt.Printf("> ")
 	}
 }

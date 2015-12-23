@@ -20,10 +20,9 @@ In this example we'll index three columns from the [wof-concordances-latest.csv]
 
 ```
 $> ./bin/wof-csvdb-index -columns wof:id,gp:id,gn:id /usr/local/mapzen/whosonfirst-data/meta/wof-concordances-latest.csv 
-indexes: 3 keys: 583634 rows: 573437 time to index: 4.628079208s
-query <col>=<id>
+> indexes: 3 keys: 583634 rows: 573437 time to index: 4.628079208s
+> query <col>=<id>
 > gp:id=3534
-gp:id=3534
 search for gp:id=3534
 where gp:id=3534 1
 looping over result #1
@@ -37,15 +36,13 @@ where wof:id=101736545 1
 where gp:id=3534 1
 where dbp:id=Montreal 0
 
-query <col>=<id>
+> query <col>=<id>
 > gp:id=44418
-gp:id=44418
 search for gp:id=44418
 where gp:id=44418 0
 
-query <col>=<id>
+> query <col>=<id>
 > gp:id=1155
-gp:id=1155
 search for gp:id=1155
 where gp:id=1155 1
 looping over result #1
