@@ -39,7 +39,8 @@ func main() {
 
 	scanner := bufio.NewScanner(os.Stdin)
 
-	fmt.Println("query <key>=<id>")
+	fmt.Println("query <col>=<id>")
+	fmt.Printf("> ")
 
 	for scanner.Scan() {
 
@@ -74,5 +75,7 @@ func main() {
 		}
 
 		fmt.Println("")
+		fmt.Println("query <col>=<id>")
+		fmt.Printf("> ")
 	}
 }
