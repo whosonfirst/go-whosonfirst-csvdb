@@ -17,8 +17,6 @@ func main() {
 	flag.Parse()
 	args := flag.Args()
 
-	path := args[0]
-
 	to_index := make([]string, 0)
 
 	for _, c := range strings.Split(*cols, ",") {
@@ -27,10 +25,15 @@ func main() {
 
 	t1 := time.Now()
 
-	db, err := csvdb.NewCSVDB(path, to_index)
+	db := csvdb.NewCSVDB()
 
-	if err != nil {
-		panic(err)
+	for _, path := range args {
+
+		err := db.IndexCSVFile(path, to_index)
+
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	t2 := time.Since(t1)

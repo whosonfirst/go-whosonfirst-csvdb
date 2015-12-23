@@ -29,15 +29,31 @@ type CSVDBRow struct {
 	row map[string]string
 }
 
-func NewCSVDB(csv_file string, to_index []string) (*CSVDB, error) {
+func NewCSVDB() *CSVDB {
 
 	db := make(map[string]*CSVDBIndex)
 	lookup := make([]*CSVDBRow, 0)
 
+	return &CSVDB{db, lookup}
+}
+
+func NewCSVDBIndex() *CSVDBIndex {
+	idx := make(map[string][]int)
+	return &CSVDBIndex{idx}
+}
+
+func NewCSVDBRow(row map[string]string) *CSVDBRow {
+	return &CSVDBRow{row}
+}
+
+/* CSVDB methods */
+
+func (d *CSVDB) IndexCSVFile(csv_file string, to_index []string) error {
+
 	reader, err := csv.NewDictReader(csv_file)
 
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	offset := 0
@@ -81,17 +97,17 @@ func NewCSVDB(csv_file string, to_index []string) (*CSVDB, error) {
 				continue
 			}
 
-			idx, ok := db[k]
+			idx, ok := d.db[k]
 
 			if !ok {
 				idx = NewCSVDBIndex()
-				db[k] = idx
+				d.db[k] = idx
 			}
 
 			if pruned_idx == -1 {
 				dbrow := NewCSVDBRow(pruned)
-				lookup = append(lookup, dbrow)
-				pruned_idx = len(lookup) - 1
+				d.lookup = append(d.lookup, dbrow)
+				pruned_idx = len(d.lookup) - 1
 			}
 
 			idx.Add(value, pruned_idx)
@@ -99,19 +115,8 @@ func NewCSVDB(csv_file string, to_index []string) (*CSVDB, error) {
 
 	}
 
-	return &CSVDB{db, lookup}, nil
+	return nil
 }
-
-func NewCSVDBIndex() *CSVDBIndex {
-	idx := make(map[string][]int)
-	return &CSVDBIndex{idx}
-}
-
-func NewCSVDBRow(row map[string]string) *CSVDBRow {
-	return &CSVDBRow{row}
-}
-
-/* CSVDB methods */
 
 func (d *CSVDB) Indexes() int {
 
