@@ -41,6 +41,17 @@ func NewCSVDB(csv_file string, to_index []string) (*CSVDB, error) {
 			continue
 		}
 
+		pruned := make(map[string]string)
+
+		for k, v := range row {
+
+			if v == "" {
+				continue
+			}
+
+			pruned[k] = v
+		}
+
 		for _, k := range to_index {
 
 			value, ok := row[k]
@@ -53,25 +64,14 @@ func NewCSVDB(csv_file string, to_index []string) (*CSVDB, error) {
 				continue
 			}
 
-			pruned := make(map[string]string)
-
-			for k, v := range row {
-
-				if v == "" {
-					continue
-				}
-
-				pruned[k] = v
-			}
-
 			idx, ok := db[k]
 
 			if !ok {
 				idx = NewCSVDBIndex()
 				db[k] = idx
 			}
-			
-			/* 
+
+			/*
 			   TO DO: ONLY STORE pruned ONCE AND THEN STORE A POINTER
 			   TO IT FROM INDIVIDUAL INDEXES (20151222/thisisaaronland)
 			*/

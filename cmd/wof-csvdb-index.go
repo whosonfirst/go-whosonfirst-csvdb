@@ -37,7 +37,6 @@ func main() {
 
 	fmt.Printf("indexes: %d keys: %d rows: %d time to index: %v\n", db.Indexes(), db.Rows(), db.Keys(), t2)
 
-
 	scanner := bufio.NewScanner(os.Stdin)
 
 	fmt.Println("query <key>=<id>")
@@ -50,8 +49,8 @@ func main() {
 		query := strings.Split(input, "=")
 
 		if len(query) != 2 {
-		   fmt.Println("Invalid query")
-		   continue		   	      
+			fmt.Println("Invalid query")
+			continue
 		}
 
 		k := query[0]
