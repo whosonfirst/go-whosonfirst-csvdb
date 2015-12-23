@@ -54,6 +54,37 @@ query <col>=<id>
 > 
 ```
 
+### wof-csvdb-server
+
+A small HTTP pony for querying a CSV file and getting the results back as JSON.
+
+```
+$> ./bin/wof-csvdb-server -columns wof:id,gp:id,gn:id /usr/local/mapzen/whosonfirst-data/meta/wof-concordances-latest.csv
+time to index /usr/local/mapzen/whosonfirst-data/meta/wof-concordances-latest.csv: 2.667267366s
+wof-csvdb-server running at localhost:8228
+```
+
+And then:
+
+```
+curl -s 'http://localhost:8228?k=gp:id&v=3534' | python -mjson.tool
+[
+    {
+        "dbp:id": "Montreal",
+        "fb:id": "en.montreal",
+        "fct:id": "03c06bce-8f76-11e1-848f-cfd5bf3ef515",
+        "gn:id": "6077243",
+        "gp:id": "3534",
+        "nyt:id": "N59179828586486930801",
+        "tgn:id": "7013051",
+        "wd:id": "Q340",
+        "wof:id": "101736545"
+    }
+]
+```
+
+_Note that as of this writing the `wof-csvdb-server` does not offer any kind of introspection so you need to know what has been indexed before you issue a query._
+
 ## See also
 
 * https://github.com/whosonfirst/go-whosonfirst-csv
