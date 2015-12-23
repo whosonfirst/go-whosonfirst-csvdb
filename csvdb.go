@@ -1,21 +1,26 @@
 package csvdb
 
 import (
-        _ "crypto/md5"
 	"errors"
-	_ "fmt"
-	_ "encoding/hex"
-	_ "encoding/json"
 	csv "github.com/whosonfirst/go-whosonfirst-csv"
 	"io"
 )
 
 type CSVDB struct {
-	db map[string]*CSVDBIndex
+
+	// So yeah these two names should probably be flipped...
+	// map is something like:
+	// gp:id = { '3534': [25] }
+	//
+	// lookup is something like:
+	// lookup[25] = {'gp:id':'3534', 'wof:id':'1234' }
+
+	db     map[string]*CSVDBIndex
+	lookup []*CSVDBRow
 }
 
 type CSVDBIndex struct {
-	index map[string][]*CSVDBRow
+	index map[string][]int
 }
 
 type CSVDBRow struct {
@@ -25,6 +30,7 @@ type CSVDBRow struct {
 func NewCSVDB(csv_file string, to_index []string) (*CSVDB, error) {
 
 	db := make(map[string]*CSVDBIndex)
+	lookup := make([]*CSVDBRow, 0)
 
 	reader, err := csv.NewDictReader(csv_file)
 
@@ -32,7 +38,6 @@ func NewCSVDB(csv_file string, to_index []string) (*CSVDB, error) {
 		return nil, err
 	}
 
-	lookup := make([]map[string]string, 0)
 	offset := 0
 
 	for {
@@ -81,30 +86,22 @@ func NewCSVDB(csv_file string, to_index []string) (*CSVDB, error) {
 				db[k] = idx
 			}
 
-			/*
-			if pruned_hex == "" {
-				pruned_json, _ := json.Marshal(pruned)
-				pruned_hash := md5.Sum(pruned_json)
-				pruned_hex = hex.EncodeToString(pruned_hash[:])
-			}
-			*/
-
 			if pruned_idx == -1 {
-			   lookup = append(lookup, pruned)
-			   pruned_idx = len(lookup) -1
+				dbrow := NewCSVDBRow(pruned)
+				lookup = append(lookup, dbrow)
+				pruned_idx = len(lookup) - 1
 			}
 
-			// fmt.Printf("row %d stored at lookup %d\n", offset, pruned_idx)
-			idx.Add(value, pruned)
+			idx.Add(value, pruned_idx)
 		}
 
 	}
 
-	return &CSVDB{db}, nil
+	return &CSVDB{db, lookup}, nil
 }
 
 func NewCSVDBIndex() *CSVDBIndex {
-	idx := make(map[string][]*CSVDBRow)
+	idx := make(map[string][]int)
 	return &CSVDBIndex{idx}
 }
 
@@ -138,13 +135,17 @@ func (d *CSVDB) Keys() int {
 
 func (d *CSVDB) Rows() int {
 
-	count := 0
+	return len(d.lookup)
 
-	for i, _ := range d.db {
-		count += d.db[i].Rows()
-	}
+	/*
+		count := 0
 
-	return count
+		for i, _ := range d.db {
+			count += d.db[i].Rows()
+		}
+
+		return count
+	*/
 }
 
 func (d *CSVDB) Where(key string, id string) ([]*CSVDBRow, error) {
@@ -157,10 +158,15 @@ func (d *CSVDB) Where(key string, id string) ([]*CSVDBRow, error) {
 		return rows, errors.New("Unknown index")
 	}
 
-	rows, ok = idx.index[id] // PLEASE MAKE ME A FUNCTION OR SOMETHING
+	offsets, ok := idx.index[id] // PLEASE MAKE ME A FUNCTION OR SOMETHING
 
 	if !ok {
 		return rows, errors.New("Unknown ID")
+	}
+
+	for idx := range offsets {
+		row := d.lookup[idx]
+		rows = append(rows, row)
 	}
 
 	return rows, nil
@@ -168,17 +174,15 @@ func (d *CSVDB) Where(key string, id string) ([]*CSVDBRow, error) {
 
 /* CSVDBIndex methods */
 
-func (i *CSVDBIndex) Add(key string, row map[string]string) bool {
+func (i *CSVDBIndex) Add(key string, lookup_idx int) bool {
 
 	possible, ok := i.index[key]
 
 	if !ok {
-		possible = make([]*CSVDBRow, 0)
+		possible = make([]int, 0)
 	}
 
-	dbrow := NewCSVDBRow(row)
-	possible = append(possible, dbrow)
-
+	possible = append(possible, lookup_idx)
 	i.index[key] = possible
 
 	return true
