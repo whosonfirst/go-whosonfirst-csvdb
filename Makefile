@@ -17,4 +17,5 @@ fmt:
 bin: 	self
 	@GOPATH=$(shell pwd) \
 	go build -o bin/wof-csvdb-index cmd/wof-csvdb-index.go
+	@GOPATH=$(shell pwd) \
 	go build -o bin/wof-csvdb-server cmd/wof-csvdb-server.go
