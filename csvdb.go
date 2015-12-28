@@ -8,28 +8,61 @@ import (
 )
 
 type CSVDB struct {
-	db map[string]*CSVDBIndex
+
+	// So yeah these two names should probably be flipped...
+	//
+	// 'map' is something like:
+	// map['gp:id'] = { '3534': [25] }
+	// map['gn:id'] = { '999': [25] }
+	//
+	// 'lookup' is something like:
+	// lookup[25] = {'gp:id':'3534', 'wof:id':'1234', 'gn:id':'999' }
+
+	db     map[string]*CSVDBIndex // This is possibly/probably overkill...
+	lookup []*CSVDBRow
 }
 
 type CSVDBIndex struct {
-	index map[string][]*CSVDBRow
+	index map[string][]int
 }
 
 type CSVDBRow struct {
 	row map[string]string
 }
 
-func NewCSVDB(csv_file string, to_index []string) (*CSVDB, error) {
+func NewCSVDB() *CSVDB {
 
 	db := make(map[string]*CSVDBIndex)
+	lookup := make([]*CSVDBRow, 0)
+
+	return &CSVDB{db, lookup}
+}
+
+func NewCSVDBIndex() *CSVDBIndex {
+	idx := make(map[string][]int)
+	return &CSVDBIndex{idx}
+}
+
+func NewCSVDBRow(row map[string]string) *CSVDBRow {
+	return &CSVDBRow{row}
+}
+
+/* CSVDB methods */
+
+func (d *CSVDB) IndexCSVFile(csv_file string, to_index []string) error {
 
 	reader, err := csv.NewDictReader(csv_file)
 
 	if err != nil {
-		return nil, err
+		return err
 	}
 
+	offset := 0
+
 	for {
+
+		offset += 1
+
 		row, err := reader.Read()
 
 		if err == io.EOF {
@@ -37,7 +70,6 @@ func NewCSVDB(csv_file string, to_index []string) (*CSVDB, error) {
 		}
 
 		if err != nil {
-			// fmt.Printf("%v\n", err)
 			continue
 		}
 
@@ -52,6 +84,8 @@ func NewCSVDB(csv_file string, to_index []string) (*CSVDB, error) {
 			pruned[k] = v
 		}
 
+		pruned_idx := -1
+
 		for _, k := range to_index {
 
 			value, ok := row[k]
@@ -64,36 +98,26 @@ func NewCSVDB(csv_file string, to_index []string) (*CSVDB, error) {
 				continue
 			}
 
-			idx, ok := db[k]
+			idx, ok := d.db[k]
 
 			if !ok {
 				idx = NewCSVDBIndex()
-				db[k] = idx
+				d.db[k] = idx
 			}
 
-			/*
-			   TO DO: ONLY STORE pruned ONCE AND THEN STORE A POINTER
-			   TO IT FROM INDIVIDUAL INDEXES (20151222/thisisaaronland)
-			*/
+			if pruned_idx == -1 {
+				dbrow := NewCSVDBRow(pruned)
+				d.lookup = append(d.lookup, dbrow)
+				pruned_idx = len(d.lookup) - 1
+			}
 
-			idx.Add(value, pruned)
+			idx.Add(value, pruned_idx)
 		}
 
 	}
 
-	return &CSVDB{db}, nil
+	return nil
 }
-
-func NewCSVDBIndex() *CSVDBIndex {
-	idx := make(map[string][]*CSVDBRow)
-	return &CSVDBIndex{idx}
-}
-
-func NewCSVDBRow(row map[string]string) *CSVDBRow {
-	return &CSVDBRow{row}
-}
-
-/* CSVDB methods */
 
 func (d *CSVDB) Indexes() int {
 
@@ -119,13 +143,17 @@ func (d *CSVDB) Keys() int {
 
 func (d *CSVDB) Rows() int {
 
-	count := 0
+	return len(d.lookup)
 
-	for i, _ := range d.db {
-		count += d.db[i].Rows()
-	}
+	/*
+		count := 0
 
-	return count
+		for i, _ := range d.db {
+			count += d.db[i].Rows()
+		}
+
+		return count
+	*/
 }
 
 func (d *CSVDB) Where(key string, id string) ([]*CSVDBRow, error) {
@@ -138,10 +166,15 @@ func (d *CSVDB) Where(key string, id string) ([]*CSVDBRow, error) {
 		return rows, errors.New("Unknown index")
 	}
 
-	rows, ok = idx.index[id] // PLEASE MAKE ME A FUNCTION OR SOMETHING
+	offsets, ok := idx.index[id] // PLEASE MAKE ME A FUNCTION OR SOMETHING
 
 	if !ok {
 		return rows, errors.New("Unknown ID")
+	}
+
+	for _, idx := range offsets {
+		row := d.lookup[idx]
+		rows = append(rows, row)
 	}
 
 	return rows, nil
@@ -149,17 +182,15 @@ func (d *CSVDB) Where(key string, id string) ([]*CSVDBRow, error) {
 
 /* CSVDBIndex methods */
 
-func (i *CSVDBIndex) Add(key string, row map[string]string) bool {
+func (i *CSVDBIndex) Add(key string, lookup_idx int) bool {
 
 	possible, ok := i.index[key]
 
 	if !ok {
-		possible = make([]*CSVDBRow, 0)
+		possible = make([]int, 0)
 	}
 
-	dbrow := NewCSVDBRow(row)
-	possible = append(possible, dbrow)
-
+	possible = append(possible, lookup_idx)
 	i.index[key] = possible
 
 	return true
