@@ -7,6 +7,7 @@ self:   prep
 	cp csvdb.go src/github.com/whosonfirst/go-whosonfirst-csvdb/
 
 deps:   
+	@GOPATH=$(shell pwd) \
 	go get -u "github.com/whosonfirst/go-whosonfirst-csv"
 
 fmt:
