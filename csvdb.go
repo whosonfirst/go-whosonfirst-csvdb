@@ -4,7 +4,9 @@ import (
 	"errors"
 	_ "fmt"
 	csv "github.com/whosonfirst/go-whosonfirst-csv"
+	_ "github.com/go-fsnotify/fsnotify"
 	"io"
+	"time"
 )
 
 type CSVDB struct {
@@ -19,6 +21,7 @@ type CSVDB struct {
 	// lookup[25] = {'gp:id':'3534', 'wof:id':'1234', 'gn:id':'999' }
 
 	db     map[string]*CSVDBIndex // This is possibly/probably overkill...
+	files map[string]time.Duration
 	lookup []*CSVDBRow
 }
 
@@ -33,9 +36,11 @@ type CSVDBRow struct {
 func NewCSVDB() *CSVDB {
 
 	db := make(map[string]*CSVDBIndex)
+	files := make(map[string]time.Duration)
+
 	lookup := make([]*CSVDBRow, 0)
 
-	return &CSVDB{db, lookup}
+	return &CSVDB{db, files, lookup}
 }
 
 func NewCSVDBIndex() *CSVDBIndex {
