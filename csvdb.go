@@ -122,6 +122,98 @@ func (d *CSVDB) reIndexCSVFile(csv_file string) error {
 	return nil
 }
 
+// THIS IS NOT BEING USED YET...
+
+func (d *CSVDB) index(csv_file string, to_index []string) (map[string]*CSVDBIndex, []*CSVDBRow, error) {
+
+	reader, err := csv.NewDictReader(csv_file)
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	db := make(map[string]*CSVDBIndex)
+	lookup := make([]*CSVDBRow, 0)
+
+	offset := 0
+
+	for {
+
+		offset += 1
+
+		row, err := reader.Read()
+
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			continue
+		}
+
+		/*
+			Take row and truncate it down to something where all
+			the keys have values. This is what we will store and
+			so this assumption about a pruned record is probably
+			incorrect. It will do for now but we might want / really
+			should make it optional...
+		*/
+
+		pruned := make(map[string]string)
+
+		for k, v := range row {
+
+			if v == "" {
+				continue
+			}
+
+			pruned[k] = v
+		}
+
+		pruned_idx := -1
+
+		/*
+			Loop through the list of keys we want to index. If we have a
+			value (for that key) we want to see whether we have already
+			created a row for it in `d.lookup` which is just a big list
+			of (pruned) rows. Rather than storing the (pruned) row multiple
+			times for each key we're indexing we store it once and associate
+			its offset (in `d.lookup`) with the key.
+		*/
+
+		for _, k := range to_index {
+
+			value, ok := pruned[k]
+
+			if !ok {
+				continue
+			}
+
+			if value == "" {
+				continue
+			}
+
+			idx, ok := db[k]
+
+			if !ok {
+				idx = NewCSVDBIndex()
+				d.db[k] = idx
+			}
+
+			if pruned_idx == -1 {
+				dbrow := NewCSVDBRow(pruned)
+				lookup = append(lookup, dbrow)
+				pruned_idx = len(lookup) - 1
+			}
+
+			idx.Add(value, pruned_idx)
+		}
+
+	}
+
+	return db, lookup, nil
+}
+
 func (d *CSVDB) IndexCSVFile(csv_file string, to_index []string) error {
 
 	var abs_path string
