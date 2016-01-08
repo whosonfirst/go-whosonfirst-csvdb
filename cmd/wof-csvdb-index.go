@@ -28,7 +28,7 @@ func main() {
 	db, err := csvdb.NewCSVDB()
 
 	if err != nil {
-	   panic(err)
+		panic(err)
 	}
 
 	for _, path := range args {

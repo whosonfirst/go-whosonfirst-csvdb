@@ -83,15 +83,43 @@ func (d *CSVDB) monitor() {
 	for {
 		select {
 		case event := <-d.watcher.Events:
-			log.Println("event:", event)
-			if event.Op&fsnotify.Write == fsnotify.Write {
-				log.Println("modified file:", event.Name)
+
+			log.Printf("event (%s): %s\n", event.Name, event)
+
+			f, _ := filepath.Abs(event.Name)
+			_, relevant := d.files[f]
+
+			if relevant && event.Op&fsnotify.Write == fsnotify.Write {
+				d.reIndexCSVFile(f)
 			}
+
 		case err := <-d.watcher.Errors:
 			log.Println("error:", err)
 		}
 	}
 
+}
+
+func (d *CSVDB) reIndexCSVFile(csv_file string) error {
+
+	to_index, ok := d.columns[csv_file]
+
+	if !ok {
+		return errors.New("failed to locate columns")
+	}
+
+	log.Printf("REINDEX %s %s\n", csv_file, to_index)
+
+	/*
+		Build an index for this file - that means ripping the guts
+		out of `IndexCSVFile`. Basically we need to track where the
+		rows for a given file#k:v pair live (their offsets) and adjust
+		that list accordingly...
+
+		Swap indexes - this means changing the way stuff is stored
+	*/
+
+	return nil
 }
 
 func (d *CSVDB) IndexCSVFile(csv_file string, to_index []string) error {
@@ -111,7 +139,6 @@ func (d *CSVDB) IndexCSVFile(csv_file string, to_index []string) error {
 	}
 
 	root := path.Dir(abs_path)
-
 	err := d.watcher.Add(root)
 
 	if err != nil {
@@ -162,12 +189,12 @@ func (d *CSVDB) IndexCSVFile(csv_file string, to_index []string) error {
 		pruned_idx := -1
 
 		/*
-		Loop through the list of keys we want to index. If we have a
-		value (for that key) we want to see whether we have already
-		created a row for it in `d.lookup` which is just a big list
-		of (pruned) rows. Rather than storing the (pruned) row multiple
-		times for each key we're indexing we store it once and associate
-		its offset (in `d.lookup`) with the key.
+			Loop through the list of keys we want to index. If we have a
+			value (for that key) we want to see whether we have already
+			created a row for it in `d.lookup` which is just a big list
+			of (pruned) rows. Rather than storing the (pruned) row multiple
+			times for each key we're indexing we store it once and associate
+			its offset (in `d.lookup`) with the key.
 		*/
 
 		for _, k := range to_index {
