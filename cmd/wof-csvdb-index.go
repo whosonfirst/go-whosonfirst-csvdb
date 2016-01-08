@@ -25,7 +25,11 @@ func main() {
 
 	t1 := time.Now()
 
-	db := csvdb.NewCSVDB()
+	db, err := csvdb.NewCSVDB()
+
+	if err != nil {
+	   panic(err)
+	}
 
 	for _, path := range args {
 

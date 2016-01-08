@@ -3,9 +3,12 @@ package csvdb
 import (
 	"errors"
 	_ "fmt"
-	csv "github.com/whosonfirst/go-whosonfirst-csv"
-	_ "github.com/go-fsnotify/fsnotify"
+	"github.com/go-fsnotify/fsnotify"
+	"github.com/whosonfirst/go-whosonfirst-csv"
 	"io"
+	"log"
+	"path"
+	"path/filepath"
 	"time"
 )
 
@@ -20,9 +23,10 @@ type CSVDB struct {
 	// 'lookup' is something like:
 	// lookup[25] = {'gp:id':'3534', 'wof:id':'1234', 'gn:id':'999' }
 
-	db     map[string]*CSVDBIndex // This is possibly/probably overkill...
-	files map[string]time.Duration
-	lookup []*CSVDBRow
+	db      map[string]*CSVDBIndex // This is possibly/probably overkill...
+	files   map[string]time.Time
+	lookup  []*CSVDBRow
+	watcher *fsnotify.Watcher
 }
 
 type CSVDBIndex struct {
@@ -33,14 +37,31 @@ type CSVDBRow struct {
 	row map[string]string
 }
 
-func NewCSVDB() *CSVDB {
+func NewCSVDB() (*CSVDB, error) {
 
 	db := make(map[string]*CSVDBIndex)
-	files := make(map[string]time.Duration)
+	files := make(map[string]time.Time)
 
 	lookup := make([]*CSVDBRow, 0)
 
-	return &CSVDB{db, files, lookup}
+	watcher, err := fsnotify.NewWatcher()
+
+	if err != nil {
+		return nil, err
+	}
+
+	// defer watcher.Close()
+
+	csvdb := CSVDB{
+		db:      db,
+		files:   files,
+		lookup:  lookup,
+		watcher: watcher,
+	}
+
+	go csvdb.monitor()
+
+	return &csvdb, nil
 }
 
 func NewCSVDBIndex() *CSVDBIndex {
@@ -54,9 +75,47 @@ func NewCSVDBRow(row map[string]string) *CSVDBRow {
 
 /* CSVDB methods */
 
+func (d *CSVDB) monitor() {
+
+	for {
+		select {
+		case event := <-d.watcher.Events:
+			log.Println("event:", event)
+			if event.Op&fsnotify.Write == fsnotify.Write {
+				log.Println("modified file:", event.Name)
+			}
+		case err := <-d.watcher.Errors:
+			log.Println("error:", err)
+		}
+	}
+
+}
+
 func (d *CSVDB) IndexCSVFile(csv_file string, to_index []string) error {
 
-	reader, err := csv.NewDictReader(csv_file)
+	var abs_path string
+
+	if path.IsAbs(csv_file) {
+		abs_path = csv_file
+	} else {
+		abs_path, _ = filepath.Abs(csv_file)
+	}
+
+	_, exists := d.files[abs_path]
+
+	if exists {
+		return errors.New("This file has already been indexed")
+	}
+
+	root := path.Dir(abs_path)
+
+	err := d.watcher.Add(root)
+
+	if err != nil {
+		return err
+	}
+
+	reader, err := csv.NewDictReader(abs_path)
 
 	if err != nil {
 		return err
@@ -120,6 +179,8 @@ func (d *CSVDB) IndexCSVFile(csv_file string, to_index []string) error {
 		}
 
 	}
+
+	d.files[abs_path] = time.Now()
 
 	return nil
 }

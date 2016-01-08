@@ -26,7 +26,11 @@ func main() {
 		to_index = append(to_index, c)
 	}
 
-	db := csvdb.NewCSVDB()
+	db, err := csvdb.NewCSVDB()
+
+	if err != nil {
+	   panic(err)
+	}
 
 	for _, path := range args {
 
