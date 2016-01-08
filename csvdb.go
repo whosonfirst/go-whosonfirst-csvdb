@@ -24,6 +24,7 @@ type CSVDB struct {
 	// lookup[25] = {'gp:id':'3534', 'wof:id':'1234', 'gn:id':'999' }
 
 	db      map[string]*CSVDBIndex // This is possibly/probably overkill...
+	columns map[string][]string
 	files   map[string]time.Time
 	lookup  []*CSVDBRow
 	watcher *fsnotify.Watcher
@@ -41,6 +42,7 @@ func NewCSVDB() (*CSVDB, error) {
 
 	db := make(map[string]*CSVDBIndex)
 	files := make(map[string]time.Time)
+	columns := make(map[string][]string)
 
 	lookup := make([]*CSVDBRow, 0)
 
@@ -55,6 +57,7 @@ func NewCSVDB() (*CSVDB, error) {
 	csvdb := CSVDB{
 		db:      db,
 		files:   files,
+		columns: columns,
 		lookup:  lookup,
 		watcher: watcher,
 	}
@@ -137,6 +140,14 @@ func (d *CSVDB) IndexCSVFile(csv_file string, to_index []string) error {
 			continue
 		}
 
+		/*
+			Take row and truncate it down to something where all
+			the keys have values. This is what we will store and
+			so this assumption about a pruned record is probably
+			incorrect. It will do for now but we might want / really
+			should make it optional...
+		*/
+
 		pruned := make(map[string]string)
 
 		for k, v := range row {
@@ -150,9 +161,18 @@ func (d *CSVDB) IndexCSVFile(csv_file string, to_index []string) error {
 
 		pruned_idx := -1
 
+		/*
+		Loop through the list of keys we want to index. If we have a
+		value (for that key) we want to see whether we have already
+		created a row for it in `d.lookup` which is just a big list
+		of (pruned) rows. Rather than storing the (pruned) row multiple
+		times for each key we're indexing we store it once and associate
+		its offset (in `d.lookup`) with the key.
+		*/
+
 		for _, k := range to_index {
 
-			value, ok := row[k]
+			value, ok := pruned[k]
 
 			if !ok {
 				continue
@@ -180,6 +200,7 @@ func (d *CSVDB) IndexCSVFile(csv_file string, to_index []string) error {
 
 	}
 
+	d.columns[abs_path] = to_index
 	d.files[abs_path] = time.Now()
 
 	return nil
