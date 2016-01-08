@@ -27,17 +27,23 @@ func main() {
 
 	db, err := csvdb.NewCSVDB()
 
+	dbg, err := csvdb.NewCSVDBDebug()
+
 	if err != nil {
 		panic(err)
 	}
 
 	for _, path := range args {
 
+	/*
 		err := db.IndexCSVFile(path, to_index)
 
 		if err != nil {
 			panic(err)
 		}
+		*/
+
+		dbg.Index(path, to_index)
 	}
 
 	t2 := time.Since(t1)
