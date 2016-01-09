@@ -2,7 +2,7 @@ package csvdb
 
 import (
 	"errors"
-	"fmt"
+	_ "fmt"
 	"github.com/go-fsnotify/fsnotify"
 	"github.com/whosonfirst/go-whosonfirst-csv"
 	"io"
@@ -53,11 +53,11 @@ func NewCSVDBDebug() (*CSVDBDebug, error) {
 
 	lookups := make(map[int]*CSVDBLookupTable)
 
-	// this is bad and really needs to be
-	// map[string]map[string][]int
+	// These definitions are insane - please to
+	// make discrete types...
 
-	pairs := make(map[string][]int)
-	refs := make(map[int][]string)
+	pairs := make(map[string]map[string][]int)
+	refs := make(map[int][][]string)
 	columns := make(map[int][]string)
 
 	db := CSVDBDebug{
@@ -79,8 +79,8 @@ type CSVDBDebug struct {
 	files   []string
 	columns map[int][]string
 	lookups map[int]*CSVDBLookupTable
-	pairs   map[string][]int
-	refs    map[int][]string
+	pairs   map[string]map[string][]int	// Ugh... really?
+	refs    map[int][][]string		// Argh...
 
 	watcher *fsnotify.Watcher
 	reload  bool
@@ -316,26 +316,34 @@ func (d *CSVDBDebug) apply_index(csv_file string, to_index []string, db *CSVDBSt
 
 		// please for to be WaitGroup-ing here... maybe?
 
+		_, ok := d.pairs[k]
+
+		if !ok {
+
+		   d.pairs[k] = make(map[string][]int)
+		}
+
 		for v, _ := range i.index {
 
-			pair := fmt.Sprintf("%s:%s", k, v)
+			// pair := fmt.Sprintf("%s:%s", k, v)
 			// fmt.Println(pair)
 
-			pointers, ok := d.pairs[pair]
+			pointers, ok := d.pairs[k][v]
 
 			if !ok {
 				pointers = make([]int, 0)
 			}
 
 			pointers = append(pointers, idx)
-			d.pairs[pair] = pointers
+			d.pairs[k][v] = pointers
 
 			refs, ok := d.refs[idx]
 
 			if !ok {
-				refs = make([]string, 0)
+				refs = make(map[int][][]string)
 			}
 
+			pair := []string{k, v}
 			refs = append(refs, pair)
 			d.refs[idx] = refs
 		}
@@ -370,7 +378,9 @@ func (d *CSVDBDebug) reindex_csvfile(csv_file string) error {
 
 	wg := new(sync.WaitGroup)
 
-	for pair, pointers := range d.pairs {
+	for k, v := range d.pairs {
+
+	    for _, pointers := range v {
 
 		wg.Add(1)
 
@@ -388,13 +398,14 @@ func (d *CSVDBDebug) reindex_csvfile(csv_file string) error {
 			}
 
 			if len(new_pointers) == 0 {
-				delete(d.pairs, pair)
+				delete(d.pairs[k], v)
+				// check whether pairs[k] has any keys
 			} else {
-				d.pairs[pair] = new_pointers
+				d.pairs[k][v] = new_pointers
 			}
 
 		}(d)
-
+		}
 	}
 
 	wg.Wait()
