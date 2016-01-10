@@ -27,28 +27,22 @@ func main() {
 
 	db, err := csvdb.NewCSVDB()
 
-	dbg, err := csvdb.NewCSVDBDebug()
-
 	if err != nil {
 		panic(err)
 	}
 
 	for _, path := range args {
 
-	/*
-		err := db.IndexCSVFile(path, to_index)
+			err := db.IndexCSVFile(path, to_index)
 
-		if err != nil {
-			panic(err)
-		}
-		*/
-
-		dbg.Index(path, to_index)
+			if err != nil {
+				panic(err)
+			}
 	}
 
 	t2 := time.Since(t1)
 
-	fmt.Printf("> indexes: %d keys: %d rows: %d time to index: %v\n", db.Indexes(), db.Rows(), db.Keys(), t2)
+	fmt.Printf("> %v\n", t2)
 
 	scanner := bufio.NewScanner(os.Stdin)
 

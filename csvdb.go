@@ -10,7 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"sync"
-	"time"
+	_ "time"
 )
 
 func NewCSVDBLookupTable() *CSVDBLookupTable {
@@ -39,9 +39,14 @@ type CSVDBRow struct {
 	row map[string]string
 }
 
-func NewCSVDBDebug() (*CSVDBDebug, error) {
+func (r *CSVDBRow) AsMap() map[string]string {
+     return r.row
+}
+
+func NewCSVDB() (*CSVDB, error) {
 
 	files := make([]string, 0)
+	columns := make(map[int][]string)
 
 	watcher, err := fsnotify.NewWatcher()
 
@@ -56,11 +61,11 @@ func NewCSVDBDebug() (*CSVDBDebug, error) {
 	// These definitions are insane - please to
 	// make discrete types...
 
-	pairs := make(map[string]map[string][]int)
-	refs := make(map[int][][]string)
-	columns := make(map[int][]string)
+	pairs := make(map[string]map[string][][]int)
 
-	db := CSVDBDebug{
+	refs := make(map[int][][]string)
+
+	db := CSVDB{
 		files:   files,
 		columns: columns,
 		lookups: lookups,
@@ -75,60 +80,16 @@ func NewCSVDBDebug() (*CSVDBDebug, error) {
 	return &db, nil
 }
 
-type CSVDBDebug struct {
+type CSVDB struct {
 	files   []string
 	columns map[int][]string
 	lookups map[int]*CSVDBLookupTable
-	pairs   map[string]map[string][]int	// Ugh... really?
-	refs    map[int][][]string		// Argh...
+	pairs   map[string]map[string][][]int // Ugh... really?
+
+	refs map[int][][]string // Argh...
 
 	watcher *fsnotify.Watcher
 	reload  bool
-}
-
-type CSVDB struct {
-
-	// So yeah these two names should probably be flipped...
-	//
-	// 'map' is something like:
-	// map['gp:id'] = { '3534': [25] }
-	// map['gn:id'] = { '999': [25] }
-	//
-	// 'lookup' is something like:
-	// lookup[25] = {'gp:id':'3534', 'wof:id':'1234', 'gn:id':'999' }
-
-	db      map[string]*CSVDBIndex // This is possibly/probably overkill...
-	columns map[string][]string
-	files   map[string]time.Time
-	lookup  []*CSVDBRow
-	watcher *fsnotify.Watcher
-}
-
-func NewCSVDB() (*CSVDB, error) {
-
-	db := make(map[string]*CSVDBIndex)
-	files := make(map[string]time.Time)
-	columns := make(map[string][]string)
-
-	lookup := make([]*CSVDBRow, 0)
-
-	watcher, err := fsnotify.NewWatcher()
-
-	if err != nil {
-		return nil, err
-	}
-
-	// defer watcher.Close()
-
-	csvdb := CSVDB{
-		db:      db,
-		files:   files,
-		columns: columns,
-		lookup:  lookup,
-		watcher: watcher,
-	}
-
-	return &csvdb, nil
 }
 
 func NewCSVDBIndex() *CSVDBIndex {
@@ -142,7 +103,37 @@ func NewCSVDBRow(row map[string]string) *CSVDBRow {
 
 /* CSVDB methods */
 
-func (d *CSVDBDebug) Index(csv_file string, to_index []string) error {
+func (d *CSVDB) Where(key string, value string) ([]*CSVDBRow, error) {
+
+	results := make([]*CSVDBRow, 0)
+
+	values, ok := d.pairs[key]
+
+	if !ok {
+		return results, errors.New("Unknown key")
+	}
+
+	pairs, ok := values[value]
+
+	if !ok {
+		return results, errors.New("Unknown value")
+	}
+
+	for _, pair := range pairs {
+	
+		idx := pair[0]
+		offset := pair[1]
+
+		lookup := d.lookups[idx]
+		row := lookup.table[offset]
+
+		results = append(results, row)
+	}
+
+	return results, nil
+}
+
+func (d *CSVDB) IndexCSVFile(csv_file string, to_index []string) error {
 
 	var abs_path string
 
@@ -179,7 +170,7 @@ func (d *CSVDBDebug) Index(csv_file string, to_index []string) error {
 	return nil
 }
 
-func (d *CSVDBDebug) monitor() {
+func (d *CSVDB) monitor() {
 
 	for {
 		select {
@@ -211,7 +202,7 @@ func (d *CSVDBDebug) monitor() {
 
 }
 
-func (d *CSVDBDebug) index_csvfile(csv_file string, to_index []string) (*CSVDBStore, *CSVDBLookupTable, error) {
+func (d *CSVDB) index_csvfile(csv_file string, to_index []string) (*CSVDBStore, *CSVDBLookupTable, error) {
 
 	reader, err := csv.NewDictReader(csv_file)
 
@@ -296,7 +287,15 @@ func (d *CSVDBDebug) index_csvfile(csv_file string, to_index []string) (*CSVDBSt
 				pruned_idx = len(lookup.table) - 1
 			}
 
-			idx.Add(value, pruned_idx)
+			// idx.Add(value, pruned_idx)
+
+			_, ok = idx.index[value]
+
+			if !ok {
+			   idx.index[value] = make([]int, 0)
+			}
+
+			idx.index[value] = append(idx.index[value], pruned_idx)
 		}
 
 	}
@@ -304,7 +303,7 @@ func (d *CSVDBDebug) index_csvfile(csv_file string, to_index []string) (*CSVDBSt
 	return db, lookup, nil
 }
 
-func (d *CSVDBDebug) apply_index(csv_file string, to_index []string, db *CSVDBStore, lookup *CSVDBLookupTable) {
+func (d *CSVDB) apply_index(csv_file string, to_index []string, db *CSVDBStore, lookup *CSVDBLookupTable) {
 
 	d.files = append(d.files, csv_file)
 	idx := len(d.files) - 1
@@ -312,50 +311,60 @@ func (d *CSVDBDebug) apply_index(csv_file string, to_index []string, db *CSVDBSt
 	d.lookups[idx] = lookup
 	d.columns[idx] = to_index
 
-	for k, i := range db.store {
+	// please for to be WaitGroup-ing here... maybe?
 
-		// please for to be WaitGroup-ing here... maybe?
+	for k, i := range db.store {
 
 		_, ok := d.pairs[k]
 
 		if !ok {
-
-		   d.pairs[k] = make(map[string][]int)
+			d.pairs[k] = make(map[string][][]int)
 		}
 
-		for v, _ := range i.index {
+		/*
+			offset is the position of the (k,v) pair for the
+			value stored in d.lookups[idx]
+		*/
 
-			// pair := fmt.Sprintf("%s:%s", k, v)
-			// fmt.Println(pair)
+		for v, offset := range i.index {
 
-			pointers, ok := d.pairs[k][v]
+			for _, p := range offset {
 
-			if !ok {
-				pointers = make([]int, 0)
+				pos := make([]int, 0)
+				pos = append(pos, idx)
+				pos = append(pos, p)
+
+				pointers, ok := d.pairs[k][v]
+
+				if !ok {
+					pointers = make([][]int, 0)
+				}
+
+				pointers = append(pointers, pos)
+				d.pairs[k][v] = pointers
+
+				/*
+					refs, ok := d.refs[idx]
+
+					if !ok {
+						refs = make([][]string, 0)
+					}
+
+					pair := []string{k, v}
+					refs = append(refs, pair)
+					d.refs[idx] = refs
+				*/
 			}
-
-			pointers = append(pointers, idx)
-			d.pairs[k][v] = pointers
-
-			refs, ok := d.refs[idx]
-
-			if !ok {
-				refs = make(map[int][][]string)
-			}
-
-			pair := []string{k, v}
-			refs = append(refs, pair)
-			d.refs[idx] = refs
 		}
 	}
 
 }
 
-func (d *CSVDBDebug) reindex_csvfile(csv_file string) error {
+func (d *CSVDB) reindex_csvfile(csv_file string) error {
 
 	d.reload = true
 
-	defer func(d *CSVDBDebug) {
+	defer func(d *CSVDB) {
 		d.reload = false
 	}(d)
 
@@ -374,39 +383,41 @@ func (d *CSVDBDebug) reindex_csvfile(csv_file string) error {
 	to_index := d.columns[idx]
 
 	delete(d.lookups, idx)
-	delete(d.refs, idx)
+	// delete(d.refs, idx)
 
 	wg := new(sync.WaitGroup)
 
-	for k, v := range d.pairs {
+	/*
+		for k, v := range d.pairs {
 
-	    for _, pointers := range v {
+		    for _, pointers := range v {
 
-		wg.Add(1)
+			wg.Add(1)
 
-		go func(d *CSVDBDebug) {
+			go func(d *CSVDB) {
 
-			defer wg.Done()
+				defer wg.Done()
 
-			new_pointers := make([]int, 0)
+				new_pointers := make([]int, 0)
 
-			for _, pt := range pointers {
+				for _, pt := range pointers {
 
-				if pt != idx {
-					new_pointers = append(new_pointers, pt)
+					if pt != idx {
+						new_pointers = append(new_pointers, pt)
+					}
 				}
-			}
 
-			if len(new_pointers) == 0 {
-				delete(d.pairs[k], v)
-				// check whether pairs[k] has any keys
-			} else {
-				d.pairs[k][v] = new_pointers
-			}
+				if len(new_pointers) == 0 {
+					delete(d.pairs[k], v)
+					// check whether pairs[k] has any keys
+				} else {
+					d.pairs[k][v] = new_pointers
+				}
 
-		}(d)
+			}(d)
+			}
 		}
-	}
+	*/
 
 	wg.Wait()
 
@@ -418,220 +429,4 @@ func (d *CSVDBDebug) reindex_csvfile(csv_file string) error {
 
 	d.apply_index(csv_file, to_index, db, lookup)
 	return nil
-}
-
-func (d *CSVDB) IndexCSVFile(csv_file string, to_index []string) error {
-
-	var abs_path string
-
-	if path.IsAbs(csv_file) {
-		abs_path = csv_file
-	} else {
-		abs_path, _ = filepath.Abs(csv_file)
-	}
-
-	_, exists := d.files[abs_path]
-
-	if exists {
-		return errors.New("This file has already been indexed")
-	}
-
-	root := path.Dir(abs_path)
-	err := d.watcher.Add(root)
-
-	if err != nil {
-		return err
-	}
-
-	reader, err := csv.NewDictReader(abs_path)
-
-	if err != nil {
-		return err
-	}
-
-	offset := 0
-
-	for {
-
-		offset += 1
-
-		row, err := reader.Read()
-
-		if err == io.EOF {
-			break
-		}
-
-		if err != nil {
-			continue
-		}
-
-		/*
-			Take row and truncate it down to something where all
-			the keys have values. This is what we will store and
-			so this assumption about a pruned record is probably
-			incorrect. It will do for now but we might want / really
-			should make it optional...
-		*/
-
-		pruned := make(map[string]string)
-
-		for k, v := range row {
-
-			if v == "" {
-				continue
-			}
-
-			pruned[k] = v
-		}
-
-		pruned_idx := -1
-
-		/*
-			Loop through the list of keys we want to index. If we have a
-			value (for that key) we want to see whether we have already
-			created a row for it in `d.lookup` which is just a big list
-			of (pruned) rows. Rather than storing the (pruned) row multiple
-			times for each key we're indexing we store it once and associate
-			its offset (in `d.lookup`) with the key.
-		*/
-
-		for _, k := range to_index {
-
-			value, ok := pruned[k]
-
-			if !ok {
-				continue
-			}
-
-			if value == "" {
-				continue
-			}
-
-			idx, ok := d.db[k]
-
-			if !ok {
-				idx = NewCSVDBIndex()
-				d.db[k] = idx
-			}
-
-			if pruned_idx == -1 {
-				dbrow := NewCSVDBRow(pruned)
-				d.lookup = append(d.lookup, dbrow)
-				pruned_idx = len(d.lookup) - 1
-			}
-
-			idx.Add(value, pruned_idx)
-		}
-
-	}
-
-	d.columns[abs_path] = to_index
-	d.files[abs_path] = time.Now()
-
-	return nil
-}
-
-func (d *CSVDB) Indexes() int {
-
-	count := 0
-
-	for _ = range d.db {
-		count += 1
-	}
-
-	return count
-}
-
-func (d *CSVDB) Keys() int {
-
-	count := 0
-
-	for i, _ := range d.db {
-		count += d.db[i].Keys()
-	}
-
-	return count
-}
-
-func (d *CSVDB) Rows() int {
-
-	return len(d.lookup)
-
-	/*
-		count := 0
-
-		for i, _ := range d.db {
-			count += d.db[i].Rows()
-		}
-
-		return count
-	*/
-}
-
-func (d *CSVDB) Where(key string, id string) ([]*CSVDBRow, error) {
-
-	rows := make([]*CSVDBRow, 0)
-
-	idx, ok := d.db[key]
-
-	if !ok {
-		return rows, errors.New("Unknown index")
-	}
-
-	offsets, ok := idx.index[id] // PLEASE MAKE ME A FUNCTION OR SOMETHING
-
-	if !ok {
-		return rows, errors.New("Unknown ID")
-	}
-
-	for _, idx := range offsets {
-		row := d.lookup[idx]
-		rows = append(rows, row)
-	}
-
-	return rows, nil
-}
-
-/* CSVDBIndex methods */
-
-func (i *CSVDBIndex) Add(key string, lookup_idx int) bool {
-
-	possible, ok := i.index[key]
-
-	if !ok {
-		possible = make([]int, 0)
-	}
-
-	possible = append(possible, lookup_idx)
-	i.index[key] = possible
-
-	return true
-}
-
-func (i *CSVDBIndex) Keys() int {
-
-	count := 0
-
-	for _ = range i.index {
-		count += 1
-	}
-
-	return count
-}
-
-func (i *CSVDBIndex) Rows() int {
-
-	count := 0
-
-	for _, rows := range i.index {
-		count += len(rows)
-	}
-
-	return count
-}
-
-/* CSVDBRow methods */
-
-func (r *CSVDBRow) AsMap() map[string]string {
-	return r.row
 }
