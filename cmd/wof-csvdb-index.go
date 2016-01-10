@@ -33,11 +33,11 @@ func main() {
 
 	for _, path := range args {
 
-			err := db.IndexCSVFile(path, to_index)
+		err := db.IndexCSVFile(path, to_index)
 
-			if err != nil {
-				panic(err)
-			}
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	t2 := time.Since(t1)

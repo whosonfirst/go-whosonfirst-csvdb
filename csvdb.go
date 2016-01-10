@@ -13,6 +13,30 @@ import (
 	_ "time"
 )
 
+/* CSVDBIndex */
+
+type CSVDBIndex struct {
+	index map[string][]int
+}
+
+func NewCSVDBIndex() *CSVDBIndex {
+	idx := make(map[string][]int)
+	return &CSVDBIndex{idx}
+}
+
+/* CSVDBStore */
+
+type CSVDBStore struct {
+	store map[string]*CSVDBIndex
+}
+
+func NewCSVDBStore() *CSVDBStore {
+	store := make(map[string]*CSVDBIndex)
+	return &CSVDBStore{store}
+}
+
+/* CSVDBLookupTable */
+
 func NewCSVDBLookupTable() *CSVDBLookupTable {
 	table := make([]*CSVDBRow, 0)
 	return &CSVDBLookupTable{table}
@@ -22,25 +46,32 @@ type CSVDBLookupTable struct {
 	table []*CSVDBRow
 }
 
-func NewCSVDBStore() *CSVDBStore {
-	store := make(map[string]*CSVDBIndex)
-	return &CSVDBStore{store}
-}
-
-type CSVDBStore struct {
-	store map[string]*CSVDBIndex
-}
-
-type CSVDBIndex struct {
-	index map[string][]int
-}
+/* CSVDBRow */
 
 type CSVDBRow struct {
 	row map[string]string
 }
 
+func NewCSVDBRow(row map[string]string) *CSVDBRow {
+	return &CSVDBRow{row}
+}
+
 func (r *CSVDBRow) AsMap() map[string]string {
-     return r.row
+	return r.row
+}
+
+/* CSVDB */
+
+type CSVDB struct {
+	files   []string
+	columns map[int][]string
+	lookups map[int]*CSVDBLookupTable
+	pairs   map[string]map[string][][]int // Ugh... really?
+
+	refs map[int][][]string // Argh...
+
+	watcher *fsnotify.Watcher
+	reload  bool
 }
 
 func NewCSVDB() (*CSVDB, error) {
@@ -80,59 +111,6 @@ func NewCSVDB() (*CSVDB, error) {
 	return &db, nil
 }
 
-type CSVDB struct {
-	files   []string
-	columns map[int][]string
-	lookups map[int]*CSVDBLookupTable
-	pairs   map[string]map[string][][]int // Ugh... really?
-
-	refs map[int][][]string // Argh...
-
-	watcher *fsnotify.Watcher
-	reload  bool
-}
-
-func NewCSVDBIndex() *CSVDBIndex {
-	idx := make(map[string][]int)
-	return &CSVDBIndex{idx}
-}
-
-func NewCSVDBRow(row map[string]string) *CSVDBRow {
-	return &CSVDBRow{row}
-}
-
-/* CSVDB methods */
-
-func (d *CSVDB) Where(key string, value string) ([]*CSVDBRow, error) {
-
-	results := make([]*CSVDBRow, 0)
-
-	values, ok := d.pairs[key]
-
-	if !ok {
-		return results, errors.New("Unknown key")
-	}
-
-	pairs, ok := values[value]
-
-	if !ok {
-		return results, errors.New("Unknown value")
-	}
-
-	for _, pair := range pairs {
-	
-		idx := pair[0]
-		offset := pair[1]
-
-		lookup := d.lookups[idx]
-		row := lookup.table[offset]
-
-		results = append(results, row)
-	}
-
-	return results, nil
-}
-
 func (d *CSVDB) IndexCSVFile(csv_file string, to_index []string) error {
 
 	var abs_path string
@@ -157,9 +135,6 @@ func (d *CSVDB) IndexCSVFile(csv_file string, to_index []string) error {
 		return err
 	}
 
-	// please for to be putting this bit in a separate function
-	// to be called from reindex
-
 	db, lookup, err := d.index_csvfile(csv_file, to_index)
 
 	if err != nil {
@@ -168,6 +143,36 @@ func (d *CSVDB) IndexCSVFile(csv_file string, to_index []string) error {
 
 	d.apply_index(abs_path, to_index, db, lookup)
 	return nil
+}
+
+func (d *CSVDB) Where(key string, value string) ([]*CSVDBRow, error) {
+
+	results := make([]*CSVDBRow, 0)
+
+	values, ok := d.pairs[key]
+
+	if !ok {
+		return results, errors.New("Unknown key")
+	}
+
+	pairs, ok := values[value]
+
+	if !ok {
+		return results, errors.New("Unknown value")
+	}
+
+	for _, pair := range pairs {
+
+		idx := pair[0]
+		offset := pair[1]
+
+		lookup := d.lookups[idx]
+		row := lookup.table[offset]
+
+		results = append(results, row)
+	}
+
+	return results, nil
 }
 
 func (d *CSVDB) monitor() {
@@ -292,7 +297,7 @@ func (d *CSVDB) index_csvfile(csv_file string, to_index []string) (*CSVDBStore, 
 			_, ok = idx.index[value]
 
 			if !ok {
-			   idx.index[value] = make([]int, 0)
+				idx.index[value] = make([]int, 0)
 			}
 
 			idx.index[value] = append(idx.index[value], pruned_idx)
@@ -387,37 +392,35 @@ func (d *CSVDB) reindex_csvfile(csv_file string) error {
 
 	wg := new(sync.WaitGroup)
 
-	/*
-		for k, v := range d.pairs {
+	for key, values := range d.pairs {
 
-		    for _, pointers := range v {
+		for value, _ := range values {
 
 			wg.Add(1)
 
-			go func(d *CSVDB) {
+			go func(d *CSVDB, k string, v string, idx int) {
 
 				defer wg.Done()
 
-				new_pointers := make([]int, 0)
+				new_pairs := make([][]int, 0)
 
-				for _, pt := range pointers {
+				for _, pair := range d.pairs[key][value] {
 
-					if pt != idx {
-						new_pointers = append(new_pointers, pt)
+					if pair[0] != idx {
+						new_pairs = append(new_pairs, pair)
 					}
+
 				}
 
-				if len(new_pointers) == 0 {
+				if len(new_pairs) == 0 {
 					delete(d.pairs[k], v)
-					// check whether pairs[k] has any keys
 				} else {
-					d.pairs[k][v] = new_pointers
+					d.pairs[k][v] = new_pairs
 				}
 
-			}(d)
-			}
+			}(d, key, value, idx)
 		}
-	*/
+	}
 
 	wg.Wait()
 
