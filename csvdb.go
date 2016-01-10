@@ -142,10 +142,10 @@ func (d *CSVDB) IndexCSVFile(csv_file string, to_index []string) error {
 
 func (d *CSVDB) Where(key string, value string) ([]*CSVDBRow, error) {
 
-     if d.reload {
+	if d.reload {
 
-     	// wait here for re-indexing to complete...
-     }
+		// wait here for re-indexing to complete...
+	}
 
 	results := make([]*CSVDBRow, 0)
 
@@ -358,6 +358,7 @@ func (d *CSVDB) reindex_csvfile(csv_file string) error {
 	d.reload = true
 
 	defer func(d *CSVDB) {
+		// send a message on a channel?
 		d.reload = false
 	}(d)
 
@@ -378,6 +379,14 @@ func (d *CSVDB) reindex_csvfile(csv_file string) error {
 	delete(d.lookups, idx)
 
 	wg := new(sync.WaitGroup)
+	mu := new(sync.Mutex)
+
+	/*
+	 TO CONSIDER - re-implement 'refs' to store the list
+	 of (k,v) pairs associated with idx - smells a bit like
+	 yak-shaving but might be useful in a multi-file context
+	 (20160110/thisisaaronland)
+	*/
 
 	for key, values := range d.pairs {
 
@@ -399,11 +408,20 @@ func (d *CSVDB) reindex_csvfile(csv_file string) error {
 
 				}
 
+				mu.Lock()
+
 				if len(new_pairs) == 0 {
 					delete(d.pairs[k], v)
+
+					if len(d.pairs[k]) == 0 {
+						delete(d.pairs, k)
+					}
+
 				} else {
 					d.pairs[k][v] = new_pairs
 				}
+
+				mu.Unlock()
 
 			}(d, key, value, idx)
 		}
