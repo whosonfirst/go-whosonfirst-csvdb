@@ -142,6 +142,11 @@ func (d *CSVDB) IndexCSVFile(csv_file string, to_index []string) error {
 
 func (d *CSVDB) Where(key string, value string) ([]*CSVDBRow, error) {
 
+     if d.reload {
+
+     	// wait here for re-indexing to complete...
+     }
+
 	results := make([]*CSVDBRow, 0)
 
 	values, ok := d.pairs[key]
