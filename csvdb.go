@@ -68,8 +68,6 @@ type CSVDB struct {
 	lookups map[int]*CSVDBLookupTable
 	pairs   map[string]map[string][][]int // Ugh... really?
 
-	refs map[int][][]string // Argh...
-
 	watcher *fsnotify.Watcher
 	reload  bool
 }
@@ -94,14 +92,11 @@ func NewCSVDB() (*CSVDB, error) {
 
 	pairs := make(map[string]map[string][][]int)
 
-	refs := make(map[int][][]string)
-
 	db := CSVDB{
 		files:   files,
 		columns: columns,
 		lookups: lookups,
 		pairs:   pairs,
-		refs:    refs,
 		watcher: watcher,
 		reload:  false,
 	}
@@ -347,18 +342,6 @@ func (d *CSVDB) apply_index(csv_file string, to_index []string, db *CSVDBStore, 
 
 				pointers = append(pointers, pos)
 				d.pairs[k][v] = pointers
-
-				/*
-					refs, ok := d.refs[idx]
-
-					if !ok {
-						refs = make([][]string, 0)
-					}
-
-					pair := []string{k, v}
-					refs = append(refs, pair)
-					d.refs[idx] = refs
-				*/
 			}
 		}
 	}
@@ -388,7 +371,6 @@ func (d *CSVDB) reindex_csvfile(csv_file string) error {
 	to_index := d.columns[idx]
 
 	delete(d.lookups, idx)
-	// delete(d.refs, idx)
 
 	wg := new(sync.WaitGroup)
 
