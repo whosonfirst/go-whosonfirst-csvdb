@@ -2,7 +2,7 @@ package csvdb
 
 import (
 	"errors"
-	_ "fmt"
+	"fmt"
 	"github.com/go-fsnotify/fsnotify"
 	"github.com/whosonfirst/go-whosonfirst-csv"
 	"io"
@@ -10,7 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"sync"
-	_ "time"
+	"time"
 )
 
 /* CSVDBIndex */
@@ -87,8 +87,11 @@ func NewCSVDB() (*CSVDB, error) {
 
 	lookups := make(map[int]*CSVDBLookupTable)
 
-	// These definitions are insane - please to
-	// make discrete types...
+	/*
+		 This type definition is insane - please to make into
+		 discrete types, at least with useful sem-descriptive
+		 names (20160113/thisisaaronland)
+	*/
 
 	pairs := make(map[string]map[string][][]int)
 
@@ -142,9 +145,9 @@ func (d *CSVDB) IndexCSVFile(csv_file string, to_index []string) error {
 
 func (d *CSVDB) Where(key string, value string) ([]*CSVDBRow, error) {
 
-	if d.reload {
-
-		// wait here for re-indexing to complete...
+	for d.reload {
+	    fmt.Println("reloading...")
+	    time.Sleep(1 * time.Second)
 	}
 
 	results := make([]*CSVDBRow, 0)
@@ -176,6 +179,8 @@ func (d *CSVDB) Where(key string, value string) ([]*CSVDBRow, error) {
 }
 
 func (d *CSVDB) monitor() {
+
+     	fmt.Printf("monitor %s\n", d.files)
 
 	for {
 		select {
