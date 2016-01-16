@@ -193,7 +193,7 @@ func (d *CSVDB) monitor() {
 		select {
 		case event := <-d.watcher.Events:
 
-			d.logger.Info("event, %s", event)
+			d.logger.Debug("event, %s", event)
 
 			f, _ := filepath.Abs(event.Name)
 			relevant := false
@@ -209,7 +209,6 @@ func (d *CSVDB) monitor() {
 			}
 
 			if relevant {
-				d.logger.Info("re-indexing %s", f)
 				d.reindex_csvfile(f)
 			}
 
@@ -221,6 +220,8 @@ func (d *CSVDB) monitor() {
 }
 
 func (d *CSVDB) index_csvfile(csv_file string, to_index []string) (*CSVDBStore, *CSVDBLookupTable, error) {
+
+     	t1 := time.Now()
 
 	reader, err := csv.NewDictReader(csv_file)
 
@@ -246,9 +247,6 @@ func (d *CSVDB) index_csvfile(csv_file string, to_index []string) (*CSVDBStore, 
 		if err != nil {
 			continue
 		}
-
-		// PLEASE TO WaitGroup()-ing here - please to be sure to mutex
-		// all the key lookups...
 
 		/*
 			Take row and truncate it down to something where all
@@ -280,6 +278,8 @@ func (d *CSVDB) index_csvfile(csv_file string, to_index []string) (*CSVDBStore, 
 			its offset (in `d.lookup`) with the key.
 		*/
 
+		mu := new(sync.Mutex)
+
 		for _, k := range to_index {
 
 			value, ok := pruned[k]
@@ -291,6 +291,8 @@ func (d *CSVDB) index_csvfile(csv_file string, to_index []string) (*CSVDBStore, 
 			if value == "" {
 				continue
 			}
+
+			mu.Lock()
 
 			idx, ok := db.store[k]
 
@@ -305,18 +307,22 @@ func (d *CSVDB) index_csvfile(csv_file string, to_index []string) (*CSVDBStore, 
 				pruned_idx = len(lookup.table) - 1
 			}
 
-			// idx.Add(value, pruned_idx)
-
 			_, ok = idx.index[value]
 
 			if !ok {
 				idx.index[value] = make([]int, 0)
 			}
 
+			d.logger.Debug("index %s -> %d (%s)", value, pruned_idx, csv_file)
 			idx.index[value] = append(idx.index[value], pruned_idx)
+			
+			mu.Unlock()
 		}
 
 	}
+
+	t2 := time.Since(t1)
+	d.logger.Debug("time to index %s, %v", csv_file, t2)
 
 	return db, lookup, nil
 }
@@ -367,6 +373,10 @@ func (d *CSVDB) apply_index(csv_file string, to_index []string, db *CSVDBStore, 
 }
 
 func (d *CSVDB) reindex_csvfile(csv_file string) error {
+
+     	d.logger.Info("re-indexing %s", csv_file)
+
+	t1 := time.Now()
 
 	d.reload = true
 
@@ -451,5 +461,9 @@ func (d *CSVDB) reindex_csvfile(csv_file string) error {
 	}
 
 	d.apply_index(csv_file, to_index, db, lookup)
+
+	t2 := time.Since(t1)
+	d.logger.Debug("time to re-index %s, %v", csv_file, t2)
+
 	return nil
 }
