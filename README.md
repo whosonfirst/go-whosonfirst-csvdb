@@ -14,10 +14,6 @@ Things this package does not do yet (or maybe ever) in no particular order:
 * Proper logging
 * Serializing indexes to disk (or loading them)
 
-## Usage
-
-_Please write me_
-
 ## Utilities
 
 ### wof-csvdb-index
