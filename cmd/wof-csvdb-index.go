@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	csvdb "github.com/whosonfirst/go-whosonfirst-csvdb"
+	"github.com/whosonfirst/go-whosonfirst-csvdb"
+	"github.com/whosonfirst/go-whosonfirst-log"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -13,6 +15,7 @@ import (
 func main() {
 
 	var cols = flag.String("columns", "", "Comma-separated list of columns to index")
+	var loglevel = flag.String("loglevel", "info", "Log level for reporting")
 
 	flag.Parse()
 	args := flag.Args()
@@ -23,12 +26,18 @@ func main() {
 		to_index = append(to_index, c)
 	}
 
+	l_writer := io.MultiWriter(os.Stdout)
+
+	logger := log.NewWOFLogger("[wof-csvdb-index] ")
+	logger.AddLogger(l_writer, *loglevel)
+
 	t1 := time.Now()
 
-	db, err := csvdb.NewCSVDB()
+	db, err := csvdb.NewCSVDB(logger)
 
 	if err != nil {
-		panic(err)
+		fmt.Printf("failed to create csvdb\n")
+		os.Exit(1)
 	}
 
 	for _, path := range args {
@@ -36,7 +45,8 @@ func main() {
 		err := db.IndexCSVFile(path, to_index)
 
 		if err != nil {
-			panic(err)
+			fmt.Printf("failed to index %s, because %v\n", path, err)
+			os.Exit(1)
 		}
 	}
 

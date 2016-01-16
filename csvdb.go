@@ -2,11 +2,11 @@ package csvdb
 
 import (
 	"errors"
-	"fmt"
+	_ "fmt"
 	"github.com/go-fsnotify/fsnotify"
 	"github.com/whosonfirst/go-whosonfirst-csv"
+	"github.com/whosonfirst/go-whosonfirst-log"
 	"io"
-	"log"
 	"path"
 	"path/filepath"
 	"sync"
@@ -68,11 +68,12 @@ type CSVDB struct {
 	lookups map[int]*CSVDBLookupTable
 	pairs   map[string]map[string][][]int // Ugh... really?
 
+	logger  *log.WOFLogger
 	watcher *fsnotify.Watcher
 	reload  bool
 }
 
-func NewCSVDB() (*CSVDB, error) {
+func NewCSVDB(logger *log.WOFLogger) (*CSVDB, error) {
 
 	files := make([]string, 0)
 	columns := make(map[int][]string)
@@ -83,14 +84,12 @@ func NewCSVDB() (*CSVDB, error) {
 		return nil, err
 	}
 
-	// defer watcher.Close()
-
 	lookups := make(map[int]*CSVDBLookupTable)
 
 	/*
-		 This type definition is insane - please to make into
-		 discrete types, at least with useful sem-descriptive
-		 names (20160113/thisisaaronland)
+	 This type definition is insane - please to make into
+	 discrete types, at least with useful sem-descriptive
+	 names (20160113/thisisaaronland)
 	*/
 
 	pairs := make(map[string]map[string][][]int)
@@ -102,6 +101,7 @@ func NewCSVDB() (*CSVDB, error) {
 		pairs:   pairs,
 		watcher: watcher,
 		reload:  false,
+		logger:  logger,
 	}
 
 	go db.monitor()
@@ -127,6 +127,15 @@ func (d *CSVDB) IndexCSVFile(csv_file string, to_index []string) error {
 	}
 
 	root := path.Dir(abs_path)
+	d.logger.Debug("watch %s", root)
+
+	/*
+		Note – it is apparently possible to have a directory with "too many files" to watch.
+		I haven't figured out whether this is dependent on the operating system. Basically it
+		seems to be triggered around line 226 in go-fsnotify/fsnotify/kqueue.go when it's
+		calling the register method (20160115/thisisaaronland)
+	*/
+
 	err := d.watcher.Add(root)
 
 	if err != nil {
@@ -146,8 +155,8 @@ func (d *CSVDB) IndexCSVFile(csv_file string, to_index []string) error {
 func (d *CSVDB) Where(key string, value string) ([]*CSVDBRow, error) {
 
 	for d.reload {
-	    fmt.Println("reloading...")
-	    time.Sleep(1 * time.Second)
+		d.logger.Info("Re-indexing data")
+		time.Sleep(1 * time.Second)
 	}
 
 	results := make([]*CSVDBRow, 0)
@@ -180,13 +189,11 @@ func (d *CSVDB) Where(key string, value string) ([]*CSVDBRow, error) {
 
 func (d *CSVDB) monitor() {
 
-     	fmt.Printf("monitor %s\n", d.files)
-
 	for {
 		select {
 		case event := <-d.watcher.Events:
 
-			log.Printf("event (%s): %s\n", event.Name, event)
+			d.logger.Info("event, %s", event)
 
 			f, _ := filepath.Abs(event.Name)
 			relevant := false
@@ -202,11 +209,12 @@ func (d *CSVDB) monitor() {
 			}
 
 			if relevant {
+				d.logger.Info("re-indexing %s", f)
 				d.reindex_csvfile(f)
 			}
 
 		case err := <-d.watcher.Errors:
-			log.Println("error:", err)
+			d.logger.Warning("watcher is sad, because %s", err)
 		}
 	}
 
@@ -378,6 +386,8 @@ func (d *CSVDB) reindex_csvfile(csv_file string) error {
 			new_files = append(new_files, indexed)
 		}
 	}
+
+	d.files = new_files
 
 	to_index := d.columns[idx]
 
