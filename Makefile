@@ -8,6 +8,8 @@ self:   prep
 
 deps:   
 	@GOPATH=$(shell pwd) go get -u "github.com/whosonfirst/go-whosonfirst-csv"
+	@GOPATH=$(shell pwd) go get -u "github.com/whosonfirst/go-whosonfirst-log"
+	@GOPATH=$(shell pwd) go get -u "github.com/whosonfirst/go-whosonfirst-utils"
 	@GOPATH=$(shell pwd) go get -u "github.com/go-fsnotify/fsnotify"
 
 fmt:

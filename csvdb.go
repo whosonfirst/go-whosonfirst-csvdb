@@ -6,6 +6,7 @@ import (
 	"github.com/go-fsnotify/fsnotify"
 	"github.com/whosonfirst/go-whosonfirst-csv"
 	"github.com/whosonfirst/go-whosonfirst-log"
+	"github.com/whosonfirst/go-whosonfirst-utils"
 	"io"
 	"path"
 	"path/filepath"
@@ -68,9 +69,10 @@ type CSVDB struct {
 	lookups map[int]*CSVDBLookupTable
 	pairs   map[string]map[string][][]int // Ugh... really?
 
-	logger  *log.WOFLogger
-	watcher *fsnotify.Watcher
-	reload  bool
+	logger       *log.WOFLogger
+	watcher      *fsnotify.Watcher
+	indexing     map[string]bool
+	lastmodified map[string]string
 }
 
 func NewCSVDB(logger *log.WOFLogger) (*CSVDB, error) {
@@ -95,13 +97,14 @@ func NewCSVDB(logger *log.WOFLogger) (*CSVDB, error) {
 	pairs := make(map[string]map[string][][]int)
 
 	db := CSVDB{
-		files:   files,
-		columns: columns,
-		lookups: lookups,
-		pairs:   pairs,
-		watcher: watcher,
-		reload:  false,
-		logger:  logger,
+		files:        files,
+		columns:      columns,
+		lookups:      lookups,
+		pairs:        pairs,
+		watcher:      watcher,
+		indexing:     make(map[string]bool),
+		lastmodified: make(map[string]string),
+		logger:       logger,
 	}
 
 	go db.monitor()
@@ -154,10 +157,7 @@ func (d *CSVDB) IndexCSVFile(csv_file string, to_index []string) error {
 
 func (d *CSVDB) Where(key string, value string) ([]*CSVDBRow, error) {
 
-	for d.reload {
-		d.logger.Info("Re-indexing data")
-		time.Sleep(1 * time.Second)
-	}
+	d.block()
 
 	results := make([]*CSVDBRow, 0)
 
@@ -208,6 +208,55 @@ func (d *CSVDB) monitor() {
 				}
 			}
 
+			d.logger.Debug("%s %t", f, relevant)
+
+			/*
+			I don't really know why this is necessary but the reality is that
+			for everything modification on a single file ends up emiting three
+			seperate 'WRITE' events all within 4-5 seconds of one another. The
+			weird part is that checking the md5 hashes still yields two 'WRITE'
+			events. Because... computers? (20160115/thisisaaronland)
+
+			[wof-csvdb-index] 22:49:02.210055 [debug] event, "/usr/local/mapzen/go-whosonfirst-csvdb/tmp/.#wof-concordances-latest.csv": CREATE
+			[wof-csvdb-index] 22:49:02.210091 [debug] /usr/local/mapzen/go-whosonfirst-csvdb/tmp/.#wof-concordances-latest.csv false
+			[wof-csvdb-index] 22:49:03.103988 [debug] event, "/usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv": CHMOD
+			[wof-csvdb-index] 22:49:03.104008 [debug] /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv false
+			[wof-csvdb-index] 22:49:03.104180 [debug] event, "/usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv": WRITE
+			[wof-csvdb-index] 22:49:03.104194 [debug] /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv true
+			[wof-csvdb-index] 22:49:03.104256 [debug] /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv true
+			[wof-csvdb-index] 22:49:03.104273 [info] re-indexing /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv
+			[wof-csvdb-index] 22:49:06.296597 [debug] time to index /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv, 2.698871153s
+			[wof-csvdb-index] 22:49:06.679866 [debug] time to re-index /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv, 3.5755657s
+			[wof-csvdb-index] 22:49:06.679897 [debug] finished indexing /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv
+			[wof-csvdb-index] 22:49:06.679918 [debug] event, "/usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv": WRITE
+			[wof-csvdb-index] 22:49:06.679925 [debug] /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv true
+			[wof-csvdb-index] 22:49:06.718560 [debug] /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv true
+			[wof-csvdb-index] 22:49:06.718581 [info] re-indexing /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv
+			[wof-csvdb-index] 22:49:09.891050 [debug] time to index /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv, 2.690056892s
+			[wof-csvdb-index] 22:49:10.276371 [debug] time to re-index /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv, 3.557770106s
+			[wof-csvdb-index] 22:49:10.276397 [debug] finished indexing /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv
+			[wof-csvdb-index] 22:49:10.276419 [debug] event, "/usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv": WRITE
+			[wof-csvdb-index] 22:49:10.276428 [debug] /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv true
+			[wof-csvdb-index] 22:49:10.315134 [debug] /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv does not appear to have changed
+			[wof-csvdb-index] 22:49:10.315157 [debug] /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv false
+			*/
+
+			if relevant {
+
+				hash, _ := utils.HashFile(f)
+				last, ok := d.lastmodified[f]
+
+				if ok {
+
+					if hash == last {
+						d.logger.Debug("%s does not appear to have changed", f)
+						relevant = false
+					}
+				}
+
+				d.logger.Debug("%s %t", f, relevant)
+			}
+
 			if relevant {
 				d.reindex_csvfile(f)
 			}
@@ -221,7 +270,10 @@ func (d *CSVDB) monitor() {
 
 func (d *CSVDB) index_csvfile(csv_file string, to_index []string) (*CSVDBStore, *CSVDBLookupTable, error) {
 
-     	t1 := time.Now()
+	t1 := time.Now()
+
+	hash, _ := utils.HashFile(csv_file)
+	d.lastmodified[csv_file] = hash
 
 	reader, err := csv.NewDictReader(csv_file)
 
@@ -313,12 +365,12 @@ func (d *CSVDB) index_csvfile(csv_file string, to_index []string) (*CSVDBStore, 
 				idx.index[value] = make([]int, 0)
 			}
 
-			d.logger.Debug("index %s -> %d (%s)", value, pruned_idx, csv_file)
+			// d.logger.Debug("index %s -> %d (%s)", value, pruned_idx, csv_file)
 			idx.index[value] = append(idx.index[value], pruned_idx)
-			
-			mu.Unlock()
-		}
 
+			mu.Unlock()
+
+		}
 	}
 
 	t2 := time.Since(t1)
@@ -374,16 +426,23 @@ func (d *CSVDB) apply_index(csv_file string, to_index []string, db *CSVDBStore, 
 
 func (d *CSVDB) reindex_csvfile(csv_file string) error {
 
-     	d.logger.Info("re-indexing %s", csv_file)
+	d.logger.Info("re-indexing %s", csv_file)
+
+	is_indexing, ok := d.indexing[csv_file]
+
+	if ok && is_indexing {
+		d.logger.Info("already indexing %s", csv_file)
+		return nil
+	}
 
 	t1 := time.Now()
 
-	d.reload = true
+	d.indexing[csv_file] = true
 
-	defer func(d *CSVDB) {
-		// send a message on a channel?
-		d.reload = false
-	}(d)
+	defer func(d *CSVDB, csv_file string) {
+		d.logger.Debug("finished indexing %s", csv_file)
+		d.indexing[csv_file] = false
+	}(d, csv_file)
 
 	var idx int
 	new_files := make([]string, 0)
@@ -421,6 +480,9 @@ func (d *CSVDB) reindex_csvfile(csv_file string) error {
 
 			go func(d *CSVDB, k string, v string, idx int) {
 
+				mu.Lock()
+
+				defer mu.Unlock()
 				defer wg.Done()
 
 				new_pairs := make([][]int, 0)
@@ -433,8 +495,6 @@ func (d *CSVDB) reindex_csvfile(csv_file string) error {
 
 				}
 
-				mu.Lock()
-
 				if len(new_pairs) == 0 {
 					delete(d.pairs[k], v)
 
@@ -445,8 +505,6 @@ func (d *CSVDB) reindex_csvfile(csv_file string) error {
 				} else {
 					d.pairs[k][v] = new_pairs
 				}
-
-				mu.Unlock()
 
 			}(d, key, value, idx)
 		}
@@ -466,4 +524,28 @@ func (d *CSVDB) reindex_csvfile(csv_file string) error {
 	d.logger.Debug("time to re-index %s, %v", csv_file, t2)
 
 	return nil
+}
+
+func (d *CSVDB) block() {
+
+	wait := false
+
+	for {
+
+		for _, indexing := range d.indexing {
+
+			if indexing {
+				wait = true
+				break
+			}
+		}
+
+		if !wait {
+			break
+		}
+
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	d.logger.Debug("unblocking")
 }
