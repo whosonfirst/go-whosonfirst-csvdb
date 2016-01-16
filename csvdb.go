@@ -155,6 +155,18 @@ func (d *CSVDB) IndexCSVFile(csv_file string, to_index []string) error {
 	return nil
 }
 
+func (d *CSVDB) Indexing() bool {
+
+	for _, indexing := range d.indexing {
+
+		if indexing {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (d *CSVDB) Where(key string, value string) ([]*CSVDBRow, error) {
 
 	d.block()
@@ -211,6 +223,7 @@ func (d *CSVDB) monitor() {
 			d.logger.Debug("%s %t", f, relevant)
 
 			/*
+
 			I don't really know why this is necessary but the reality is that
 			for everything modification on a single file ends up emiting three
 			seperate 'WRITE' events all within 4-5 seconds of one another. The
@@ -239,6 +252,7 @@ func (d *CSVDB) monitor() {
 			[wof-csvdb-index] 22:49:10.276428 [debug] /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv true
 			[wof-csvdb-index] 22:49:10.315134 [debug] /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv does not appear to have changed
 			[wof-csvdb-index] 22:49:10.315157 [debug] /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv false
+
 			*/
 
 			if relevant {
@@ -528,24 +542,13 @@ func (d *CSVDB) reindex_csvfile(csv_file string) error {
 
 func (d *CSVDB) block() {
 
-	wait := false
-
 	for {
 
-		for _, indexing := range d.indexing {
-
-			if indexing {
-				wait = true
-				break
-			}
-		}
-
-		if !wait {
+		if !d.Indexing() {
 			break
 		}
 
-		time.Sleep(500 * time.Millisecond)
+		d.logger.Debug("blocking")
+		time.Sleep(100 * time.Millisecond)
 	}
-
-	d.logger.Debug("unblocking")
 }

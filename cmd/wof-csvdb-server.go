@@ -57,6 +57,11 @@ func main() {
 
 	handler := func(rsp http.ResponseWriter, req *http.Request) {
 
+		if db.Indexing() {
+			http.Error(rsp, "Database is re-indexing, please try again shortly", http.StatusServiceUnavailable)
+			return
+		}
+
 		query := req.URL.Query()
 
 		k := query.Get("k")
