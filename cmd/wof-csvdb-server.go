@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	csvdb "github.com/whosonfirst/go-whosonfirst-csvdb"
+	"github.com/whosonfirst/go-whosonfirst-csvdb"
+	"github.com/whosonfirst/go-whosonfirst-log"
+	"io"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
@@ -16,6 +19,7 @@ func main() {
 	var host = flag.String("host", "localhost", "The hostname to listen for requests on")
 	var port = flag.Int("port", 8228, "The port number to listen for requests on")
 	var cors = flag.Bool("cors", false, "Enable CORS headers")
+	var loglevel = flag.String("loglevel", "info", "Log level for reporting")
 
 	flag.Parse()
 	args := flag.Args()
@@ -26,7 +30,16 @@ func main() {
 		to_index = append(to_index, c)
 	}
 
-	db := csvdb.NewCSVDB()
+	l_writer := io.MultiWriter(os.Stdout)
+
+	logger := log.NewWOFLogger("[wof-csvdb-index] ")
+	logger.AddLogger(l_writer, *loglevel)
+
+	db, err := csvdb.NewCSVDB(logger)
+
+	if err != nil {
+		panic(err)
+	}
 
 	for _, path := range args {
 
@@ -43,6 +56,11 @@ func main() {
 	}
 
 	handler := func(rsp http.ResponseWriter, req *http.Request) {
+
+		if db.Indexing() {
+			http.Error(rsp, "Database is re-indexing, please try again shortly", http.StatusServiceUnavailable)
+			return
+		}
 
 		query := req.URL.Query()
 
