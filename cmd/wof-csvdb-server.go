@@ -114,5 +114,12 @@ func main() {
 	fmt.Printf("wof-csvdb-server running at %s\n", endpoint)
 
 	http.HandleFunc("/", handler)
-	http.ListenAndServe(endpoint, nil)
+	err = http.ListenAndServe(endpoint, nil)
+
+	if err != nil {
+		logger.Error("failed to start wof-csvdb-server because %v", err)
+		os.Exit(1)
+	}
+
+	os.Exit(0)
 }

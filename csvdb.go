@@ -224,34 +224,34 @@ func (d *CSVDB) monitor() {
 
 			/*
 
-			I don't really know why this is necessary but the reality is that
-			for everything modification on a single file ends up emiting three
-			seperate 'WRITE' events all within 4-5 seconds of one another. The
-			weird part is that checking the md5 hashes still yields two 'WRITE'
-			events. Because... computers? (20160115/thisisaaronland)
+				I don't really know why this is necessary but the reality is that
+				for everything modification on a single file ends up emiting three
+				seperate 'WRITE' events all within 4-5 seconds of one another. The
+				weird part is that checking the md5 hashes still yields two 'WRITE'
+				events. Because... computers? (20160115/thisisaaronland)
 
-			[wof-csvdb-index] 22:49:02.210055 [debug] event, "/usr/local/mapzen/go-whosonfirst-csvdb/tmp/.#wof-concordances-latest.csv": CREATE
-			[wof-csvdb-index] 22:49:02.210091 [debug] /usr/local/mapzen/go-whosonfirst-csvdb/tmp/.#wof-concordances-latest.csv false
-			[wof-csvdb-index] 22:49:03.103988 [debug] event, "/usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv": CHMOD
-			[wof-csvdb-index] 22:49:03.104008 [debug] /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv false
-			[wof-csvdb-index] 22:49:03.104180 [debug] event, "/usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv": WRITE
-			[wof-csvdb-index] 22:49:03.104194 [debug] /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv true
-			[wof-csvdb-index] 22:49:03.104256 [debug] /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv true
-			[wof-csvdb-index] 22:49:03.104273 [info] re-indexing /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv
-			[wof-csvdb-index] 22:49:06.296597 [debug] time to index /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv, 2.698871153s
-			[wof-csvdb-index] 22:49:06.679866 [debug] time to re-index /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv, 3.5755657s
-			[wof-csvdb-index] 22:49:06.679897 [debug] finished indexing /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv
-			[wof-csvdb-index] 22:49:06.679918 [debug] event, "/usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv": WRITE
-			[wof-csvdb-index] 22:49:06.679925 [debug] /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv true
-			[wof-csvdb-index] 22:49:06.718560 [debug] /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv true
-			[wof-csvdb-index] 22:49:06.718581 [info] re-indexing /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv
-			[wof-csvdb-index] 22:49:09.891050 [debug] time to index /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv, 2.690056892s
-			[wof-csvdb-index] 22:49:10.276371 [debug] time to re-index /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv, 3.557770106s
-			[wof-csvdb-index] 22:49:10.276397 [debug] finished indexing /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv
-			[wof-csvdb-index] 22:49:10.276419 [debug] event, "/usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv": WRITE
-			[wof-csvdb-index] 22:49:10.276428 [debug] /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv true
-			[wof-csvdb-index] 22:49:10.315134 [debug] /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv does not appear to have changed
-			[wof-csvdb-index] 22:49:10.315157 [debug] /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv false
+				[wof-csvdb-index] 22:49:02.210055 [debug] event, "/usr/local/mapzen/go-whosonfirst-csvdb/tmp/.#wof-concordances-latest.csv": CREATE
+				[wof-csvdb-index] 22:49:02.210091 [debug] /usr/local/mapzen/go-whosonfirst-csvdb/tmp/.#wof-concordances-latest.csv false
+				[wof-csvdb-index] 22:49:03.103988 [debug] event, "/usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv": CHMOD
+				[wof-csvdb-index] 22:49:03.104008 [debug] /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv false
+				[wof-csvdb-index] 22:49:03.104180 [debug] event, "/usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv": WRITE
+				[wof-csvdb-index] 22:49:03.104194 [debug] /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv true
+				[wof-csvdb-index] 22:49:03.104256 [debug] /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv true
+				[wof-csvdb-index] 22:49:03.104273 [info] re-indexing /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv
+				[wof-csvdb-index] 22:49:06.296597 [debug] time to index /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv, 2.698871153s
+				[wof-csvdb-index] 22:49:06.679866 [debug] time to re-index /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv, 3.5755657s
+				[wof-csvdb-index] 22:49:06.679897 [debug] finished indexing /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv
+				[wof-csvdb-index] 22:49:06.679918 [debug] event, "/usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv": WRITE
+				[wof-csvdb-index] 22:49:06.679925 [debug] /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv true
+				[wof-csvdb-index] 22:49:06.718560 [debug] /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv true
+				[wof-csvdb-index] 22:49:06.718581 [info] re-indexing /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv
+				[wof-csvdb-index] 22:49:09.891050 [debug] time to index /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv, 2.690056892s
+				[wof-csvdb-index] 22:49:10.276371 [debug] time to re-index /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv, 3.557770106s
+				[wof-csvdb-index] 22:49:10.276397 [debug] finished indexing /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv
+				[wof-csvdb-index] 22:49:10.276419 [debug] event, "/usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv": WRITE
+				[wof-csvdb-index] 22:49:10.276428 [debug] /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv true
+				[wof-csvdb-index] 22:49:10.315134 [debug] /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv does not appear to have changed
+				[wof-csvdb-index] 22:49:10.315157 [debug] /usr/local/mapzen/go-whosonfirst-csvdb/tmp/wof-concordances-latest.csv false
 
 			*/
 
