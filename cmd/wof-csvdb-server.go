@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"github.com/whosonfirst/go-whosonfirst-csvdb"
@@ -48,6 +49,9 @@ func main() {
 		err := db.IndexCSVFile(path, to_index)
 
 		if err != nil {
+		
+			msg := fmt.Sprintf("failed to %s, because %v", path, err)
+			err = errors.New(msg)
 			panic(err)
 		}
 
