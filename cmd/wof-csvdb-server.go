@@ -49,10 +49,15 @@ func main() {
 		err := db.IndexCSVFile(path, to_index)
 
 		if err != nil {
-		
-			msg := fmt.Sprintf("failed to %s, because %v", path, err)
-			err = errors.New(msg)
-			panic(err)
+
+			if err.Error() == "EOF" {
+				fmt.Printf("skip %s because it appears to be empty...\n", path)
+			} else {
+				msg := fmt.Sprintf("failed to %s, because %v", path, err)
+				err = errors.New(msg)
+
+				panic(err)
+			}
 		}
 
 		t2 := time.Since(t1)
