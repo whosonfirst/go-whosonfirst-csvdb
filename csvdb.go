@@ -289,7 +289,7 @@ func (d *CSVDB) index_csvfile(csv_file string, to_index []string) (*CSVDBStore, 
 	hash, _ := utils.HashFile(csv_file)
 	d.lastmodified[csv_file] = hash
 
-	reader, err := csv.NewDictReader(csv_file)
+	reader, err := csv.NewDictReaderFromPath(csv_file)
 
 	if err != nil {
 		return nil, nil, err
