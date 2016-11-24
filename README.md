@@ -20,7 +20,7 @@ Things this package does not do yet (or maybe ever) in no particular order:
 
 This is a little bit of a misnomer as it's mostly a testing tool right now. Oh well...
 
-In this example we'll index three columns from the [wof-concordances-latest.csv]() file (specifically `wof:id` and `gp:id` and `gn:id`) and then perform a couple queries against the index:
+In this example we'll index three columns from the [wof-concordances-latest.csv](https://github.com/whosonfirst-data/whosonfirst-data/blob/master/meta/wof-concordances-latest.csv) file (specifically `wof:id` and `gp:id` and `gn:id`) and then perform a couple queries against the index:
 
 ```
 ./bin/wof-csvdb-index -columns wof:id,gp:id,gn:id /usr/local/mapzen/whosonfirst-data/meta/wof-concordances-latest.csv
